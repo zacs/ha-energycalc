@@ -174,7 +174,7 @@ class PowerDeviceDiscovery:
         existing_entries = [
             entry
             for entry in self.hass.config_entries.async_entries(DOMAIN)
-            if entry.unique_id == f"pc_totals_{power_entity.entity_id}"
+            if entry.unique_id == f"powercalc_totals_{power_entity.entity_id}"
         ]
         if existing_entries:
             _LOGGER.debug(
@@ -196,32 +196,32 @@ class PowerDeviceDiscovery:
             "area_id": power_entity.area_id,
         }
 
-        # Get the best available name
-        if device_entry:
+        # Get the best available name, preferring entity name for multi-outlet devices
+        entity_name = power_entity.name or power_entity.original_name
+        if entity_name:
+            # Use entity name first as it's more specific (e.g., "PDU Pro Outlet 1" vs "PDU Pro")
+            discovery_data["device_name"] = entity_name
+            _LOGGER.debug("Using entity name: %s for %s", entity_name, power_entity.entity_id)
+        elif device_entry:
+            # Fallback to device name if entity has no specific name
             device_name = device_entry.name_by_user or device_entry.name
             if device_name:
                 discovery_data["device_name"] = device_name
-                discovery_data["manufacturer"] = device_entry.manufacturer
-                discovery_data["model"] = device_entry.model
                 _LOGGER.debug("Using device name: %s for %s", device_name, power_entity.entity_id)
             else:
-                # Device entry exists but has no name, use entity name
-                entity_name = power_entity.name or power_entity.original_name
-                if entity_name:
-                    discovery_data["device_name"] = entity_name
-                else:
-                    # Last resort: use entity ID without sensor prefix
-                    discovery_data["device_name"] = power_entity.entity_id.replace("sensor.", "").replace("_", " ").title()
-                _LOGGER.debug("Device has no name, using entity-based name: %s for %s", discovery_data["device_name"], power_entity.entity_id)
-        else:
-            # Fallback to entity name if no device
-            entity_name = power_entity.name or power_entity.original_name
-            if entity_name:
-                discovery_data["device_name"] = entity_name
-            else:
-                # Last resort: use entity ID without sensor prefix  
+                # Last resort: use entity ID without sensor prefix
                 discovery_data["device_name"] = power_entity.entity_id.replace("sensor.", "").replace("_", " ").title()
-            _LOGGER.debug("No device found, using entity-based name: %s for %s", discovery_data["device_name"], power_entity.entity_id)
+                _LOGGER.debug("Device has no name, using entity ID-based name: %s for %s", discovery_data["device_name"], power_entity.entity_id)
+        else:
+            # No device entry, use entity ID as name
+            discovery_data["device_name"] = power_entity.entity_id.replace("sensor.", "").replace("_", " ").title()
+            _LOGGER.debug("No device found, using entity ID-based name: %s for %s", discovery_data["device_name"], power_entity.entity_id)
+        
+        # Add device info if available
+        if device_entry:
+            discovery_data["manufacturer"] = device_entry.manufacturer
+            discovery_data["model"] = device_entry.model
+
 
         # Create discovery flow with proper title
         device_name = discovery_data.get("device_name", "Unknown Device")
