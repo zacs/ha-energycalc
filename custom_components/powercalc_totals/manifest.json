@@ -1,0 +1,14 @@
+{
+  "domain": "powercalc_totals",
+  "name": "Power Calc Totals",
+  "codeowners": ["@zac"],
+  "config_flow": true,
+  "dependencies": ["integration"],
+  "documentation": "https://github.com/zac/powercalc_totals",
+  "integration_type": "device",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/zac/powercalc_totals/issues",
+  "requirements": [],
+  "version": "1.0.0",
+  "after_dependencies": ["integration"]
+}

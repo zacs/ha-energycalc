@@ -1,0 +1,29 @@
+# Example configuration for Power Calc Totals
+
+# The component will automatically discover power entities and create energy sensors
+# No YAML configuration is required - use the UI to set up the integration
+
+# However, you can manually create sensors using services if needed:
+
+# Create an energy sensor for a power entity
+# service: powercalc_totals.create_energy_sensor
+# data:
+#   source_entity: sensor.unifi_pdu_outlet_1_power
+#   integration_method: trapezoidal
+#   round_digits: 2
+#   unit_prefix: k
+#   max_sub_interval_minutes: 5
+
+# Remove an energy sensor
+# service: powercalc_totals.remove_energy_sensor
+# data:
+#   entity_id: sensor.unifi_pdu_outlet_1_total_energy
+
+# Available integration methods:
+# - trapezoidal (default, most accurate)
+# - left (left Riemann sum)
+# - right (right Riemann sum)
+
+# Unit prefixes:
+# - k: kWh (kilowatt-hours) - default, compatible with Energy Dashboard
+# - "" (empty): Wh (watt-hours)

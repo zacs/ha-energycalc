@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Power Calc Totals",
+        "description": "Power Calc Totals will automatically discover devices with power sensors that need energy sensors and create discovered integrations for each one.",
+        "data": {}
+      },
+      "integration_discovery": {
+        "title": "Add Energy Sensor for {name}",
+        "description": "Do you want to add an energy sensor for the power entity **{power_entity}** on device **{name}**?"
+      },
+      "confirm": {
+        "title": "Confirm Energy Sensor for {name}",
+        "description": "This will create an energy sensor for the power entity **{power_entity}** on device **{name}**."
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Energy sensor is already configured for this power entity",
+      "not_supported": "Manual configuration is not supported. Power Calc Totals automatically discovers devices that need energy sensors."
+    }
+  },
+  "title": "Power Calc Totals"
+}

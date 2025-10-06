@@ -1,0 +1,66 @@
+create_energy_sensor:
+  name: Create Energy Sensor
+  description: Create a total energy sensor for a power entity
+  fields:
+    source_entity:
+      name: Source Entity
+      description: The power entity to create an energy sensor for
+      required: true
+      selector:
+        entity:
+          domain: sensor
+    integration_method:
+      name: Integration Method
+      description: Method to use for calculating the integral
+      required: false
+      default: trapezoidal
+      selector:
+        select:
+          options:
+            - trapezoidal
+            - left
+            - right
+    round_digits:
+      name: Round Digits
+      description: Number of decimal places to round to
+      required: false
+      default: 2
+      selector:
+        number:
+          min: 0
+          max: 10
+          mode: box
+    unit_prefix:
+      name: Unit Prefix
+      description: Unit prefix for the energy sensor
+      required: false
+      default: k
+      selector:
+        select:
+          options:
+            - label: "Wh"
+              value: ""
+            - label: "kWh"
+              value: "k"
+    max_sub_interval_minutes:
+      name: Max Sub-interval Minutes
+      description: Maximum time between measurements in minutes
+      required: false
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          mode: box
+
+remove_energy_sensor:
+  name: Remove Energy Sensor
+  description: Remove a total energy sensor created by this integration
+  fields:
+    entity_id:
+      name: Entity ID
+      description: The energy sensor entity ID to remove
+      required: true
+      selector:
+        entity:
+          domain: sensor
