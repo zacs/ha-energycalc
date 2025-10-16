@@ -7,12 +7,12 @@
         "data": {}
       },
       "integration_discovery": {
-        "title": "Add Energy Sensor for {name}",
-        "description": "Do you want to add an energy sensor for the power entity **{power_entity}** on device **{name}**?"
+        "title": "Power Calc Totals: {name}",
+        "description": "Do you want to add energy sensors for **{name}**? This will create energy tracking for all power entities on this device."
       },
       "confirm": {
-        "title": "Confirm Energy Sensor for {name}",
-        "description": "This will create an energy sensor for the power entity **{power_entity}** on device **{name}**."
+        "title": "Power Calc Totals: {name}",
+        "description": "This will create energy sensors for all power entities on **{name}**."
       }
     },
     "error": {

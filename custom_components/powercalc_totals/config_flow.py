@@ -36,9 +36,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle integration discovery."""
         _LOGGER.debug(f"Starting integration discovery flow with info: {discovery_info}")
         
-        # Set unique ID for this discovery
-        power_entity_id = discovery_info["power_entity_id"]
-        await self.async_set_unique_id(f"powercalc_totals_{power_entity_id}")
+        # Handle both old (single entity) and new (multiple entities) discovery formats
+        if "power_entity_ids" in discovery_info:
+            # New multi-entity format
+            power_entity_ids = discovery_info["power_entity_ids"]
+            unique_id = discovery_info["unique_id"]
+            primary_entity_id = power_entity_ids[0]  # Use first entity for display
+        else:
+            # Legacy single entity format (for backward compatibility)
+            power_entity_ids = [discovery_info["power_entity_id"]]
+            primary_entity_id = discovery_info["power_entity_id"]
+            unique_id = f"powercalc_totals_{primary_entity_id}"
+        
+        await self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
         
         # Use device name from discovery data if available, following Battery Notes pattern
@@ -46,28 +56,30 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not device_name:
             # Fallback to extracting from entity ID
             try:
-                device_name = self._extract_device_name(power_entity_id)
-                _LOGGER.debug(f"Extracted device name: '{device_name}' from entity: {power_entity_id}")
+                device_name = self._extract_device_name(primary_entity_id)
+                _LOGGER.debug(f"Extracted device name: '{device_name}' from entity: {primary_entity_id}")
             except Exception as e:
-                _LOGGER.warning(f"Could not extract device name for {power_entity_id}: {e}")
-                device_name = power_entity_id.replace("sensor.", "").replace("_", " ").title()
+                _LOGGER.warning(f"Could not extract device name for {primary_entity_id}: {e}")
+                device_name = primary_entity_id.replace("sensor.", "").replace("_", " ").title()
         else:
-            _LOGGER.debug(f"Using device name from discovery: '{device_name}' for entity: {power_entity_id}")
+            _LOGGER.debug(f"Using device name from discovery: '{device_name}' for entities: {power_entity_ids}")
         
         # Store discovery info for confirmation step
         self._discovery_info = discovery_info
         self.data = {
-            "power_entity_id": power_entity_id,
+            "power_entity_ids": power_entity_ids,  # Store all entities
             "device_name": device_name,
-            "device_id": discovery_info.get("device_id"),
+            # Don't store device_id to avoid config entry being associated with the device
             "manufacturer": discovery_info.get("manufacturer"),
             "model": discovery_info.get("model"),
         }
         
         # Set title placeholders for discovery UI like Battery Notes does
+        entity_count = len(power_entity_ids)
+        display_text = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} outlets)"
         self.context["title_placeholders"] = {
-            "name": device_name,
-            "power_entity": power_entity_id,
+            "name": display_text,
+            "power_entity": primary_entity_id,  # Show primary entity in description
             "manufacturer": discovery_info.get("manufacturer", ""),
             "model": discovery_info.get("model", ""),
         }
@@ -79,38 +91,35 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Confirm the setup."""
         if user_input is not None:
-            # Get entity registry to get the power entity name
-            entity_registry = er.async_get(self.hass)
-            power_entity_id = self.data["power_entity_id"]
-            power_entity = entity_registry.async_get(power_entity_id)
-            
-            # Create a more descriptive title
+            # Handle both single and multiple entity formats
+            power_entity_ids = self.data.get("power_entity_ids", [self.data.get("power_entity_id")])
             device_name = self.data.get("device_name", "Unknown Device")
             
-            if power_entity:
-                power_entity_name = power_entity.name or power_entity.original_name or power_entity_id
-            else:
-                # Fallback if entity not in registry
-                power_entity_name = power_entity_id.replace("sensor.", "").replace("_", " ").title()
-            
-            if device_name and device_name != "Unknown Device":
+            # Create a descriptive title
+            entity_count = len(power_entity_ids)
+            if entity_count == 1:
                 title = f"{device_name} - Energy Sensor"
             else:
-                title = f"{power_entity_name} - Energy Sensor"
+                title = f"{device_name} - Energy Sensors ({entity_count} outlets)"
             
             return self.async_create_entry(
                 title=title,
                 data=self.data,
             )
 
-        power_entity_id = self.data["power_entity_id"]
+        # Handle both single and multiple entity formats for display
+        power_entity_ids = self.data.get("power_entity_ids", [self.data.get("power_entity_id")])
         device_name = self.data.get("device_name", "Unknown Device")
+        primary_entity_id = power_entity_ids[0]
+        
+        entity_count = len(power_entity_ids)
+        display_name = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} outlets)"
 
         return self.async_show_form(
             step_id="confirm",
             description_placeholders={
-                "name": device_name,
-                "power_entity": power_entity_id,
+                "name": display_name,
+                "power_entity": primary_entity_id,
             },
         )
 

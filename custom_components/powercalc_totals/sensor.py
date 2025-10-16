@@ -110,6 +110,7 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
             
         # Use the same identifiers and connections as the original device
         # This ensures the energy sensor appears on the same device page
+        # Do NOT include name, manufacturer, model etc. to avoid overriding the existing device
         return DeviceInfo(
             identifiers=device_entry.identifiers,
             connections=device_entry.connections,
@@ -143,30 +144,37 @@ async def async_setup_entry(
     _LOGGER.debug(f"Config entry data: {config_entry.data}")
     
     try:
-        # Get power entity ID from config entry data
-        power_entity_id = config_entry.data.get("power_entity_id")
-        if not power_entity_id:
-            _LOGGER.error(f"No power_entity_id found in config entry {config_entry.entry_id}")
-            return
+        # Handle both single and multiple entity formats
+        power_entity_ids = config_entry.data.get("power_entity_ids")
+        if not power_entity_ids:
+            # Legacy single entity format
+            power_entity_id = config_entry.data.get("power_entity_id")
+            if not power_entity_id:
+                _LOGGER.error(f"No power entity IDs found in config entry {config_entry.entry_id}")
+                return
+            power_entity_ids = [power_entity_id]
         
-        _LOGGER.debug(f"Creating energy sensor for power entity: {power_entity_id}")
+        _LOGGER.debug(f"Creating energy sensors for power entities: {power_entity_ids}")
         
-        # Create energy sensor unique ID
-        energy_entity_unique_id = f"{config_entry.entry_id}_energy"
+        # Create energy sensors for all power entities
+        energy_sensors = []
+        for i, power_entity_id in enumerate(power_entity_ids):
+            # Create unique ID for each sensor
+            energy_entity_unique_id = f"{config_entry.entry_id}_energy_{i}"
+            
+            _LOGGER.debug(f"Energy sensor unique ID: {energy_entity_unique_id} for {power_entity_id}")
+            
+            # Create the integration sensor
+            energy_sensor = PowerTotalEnergyIntegrationSensor(
+                hass=hass,
+                power_entity_id=power_entity_id,
+                unique_id=energy_entity_unique_id,
+            )
+            energy_sensors.append(energy_sensor)
         
-        _LOGGER.debug(f"Energy sensor unique ID: {energy_entity_unique_id}")
-        
-        # Create the integration sensor
-        _LOGGER.debug(f"Creating PowerTotalEnergyIntegrationSensor...")
-        energy_sensor = PowerTotalEnergyIntegrationSensor(
-            hass=hass,
-            power_entity_id=power_entity_id,
-            unique_id=energy_entity_unique_id,
-        )
-        
-        _LOGGER.debug(f"Successfully created energy sensor, adding to Home Assistant...")
-        async_add_entities([energy_sensor], True)
-        _LOGGER.info(f"Successfully added energy sensor for {power_entity_id}")
+        _LOGGER.debug(f"Successfully created {len(energy_sensors)} energy sensors, adding to Home Assistant...")
+        async_add_entities(energy_sensors, True)
+        _LOGGER.info(f"Successfully added energy sensors for {len(power_entity_ids)} power entities: {power_entity_ids}")
         
     except Exception as e:
         _LOGGER.error(f"Failed to create energy sensor for {power_entity_id}: {e}")

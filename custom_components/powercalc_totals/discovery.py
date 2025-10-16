@@ -39,23 +39,30 @@ class PowerDeviceDiscovery:
         power_entities = self._get_power_entities(entity_registry)
         _LOGGER.info("Found %d power entities to check", len(power_entities))
         
-        discovered_count = 0
+        # Filter entities that need energy sensors
+        entities_needing_energy = []
         for power_entity in power_entities:
-            # Check if there's already an energy entity for this device
             if not self._has_energy_entity(power_entity, entity_registry):
                 _LOGGER.info(
                     "Found power entity %s without corresponding energy entity",
                     power_entity.entity_id
                 )
-                
-                # Create discovery flow for this entity
-                await self._init_entity_discovery(power_entity, device_registry)
-                discovered_count += 1
+                entities_needing_energy.append(power_entity)
             else:
                 _LOGGER.debug(
                     "Power entity %s already has energy entity, skipping",
                     power_entity.entity_id
                 )
+        
+        # Group entities by device
+        device_groups = self._group_entities_by_device(entities_needing_energy)
+        _LOGGER.info("Grouped entities into %d device groups", len(device_groups))
+        
+        # Create discovery flows per device
+        discovered_count = 0
+        for device_id, entities_group in device_groups.items():
+            await self._init_device_discovery(entities_group, device_registry)
+            discovered_count += 1
         
         _LOGGER.info("Discovery complete. Created %d discovered integration entries", discovered_count)
 
@@ -163,6 +170,95 @@ class PowerDeviceDiscovery:
                         return True
                         
         return False
+
+    def _group_entities_by_device(self, power_entities: list[RegistryEntry]) -> dict[str | None, list[RegistryEntry]]:
+        """Group power entities by their device_id."""
+        device_groups: dict[str | None, list[RegistryEntry]] = {}
+        
+        for entity in power_entities:
+            device_id = entity.device_id
+            if device_id not in device_groups:
+                device_groups[device_id] = []
+            device_groups[device_id].append(entity)
+        
+        return device_groups
+
+    async def _init_device_discovery(
+        self,
+        power_entities: list[RegistryEntry],
+        device_registry: dr.DeviceRegistry,
+    ) -> None:
+        """Create discovery flow for a device with multiple power entities."""
+        if not power_entities:
+            return
+            
+        # Use the first entity to determine device info, but all entities will be included
+        primary_entity = power_entities[0]
+        device_id = primary_entity.device_id
+        
+        # Check if we already have a config entry for this device
+        expected_unique_id = f"powercalc_totals_device_{device_id}" if device_id else f"powercalc_totals_no_device_{primary_entity.entity_id}"
+        existing_entries = [
+            entry
+            for entry in self.hass.config_entries.async_entries(DOMAIN)
+            if entry.unique_id == expected_unique_id
+        ]
+        if existing_entries:
+            _LOGGER.debug(
+                "Already have config entry for device %s, skipping discovery",
+                device_id or "no_device",
+            )
+            return
+
+        # Get device info if available
+        device_entry = None
+        if device_id:
+            device_entry = device_registry.async_get(device_id)
+
+        # Create discovery data with all power entities for this device
+        power_entity_ids = [entity.entity_id for entity in power_entities]
+        discovery_data: dict[str, Any] = {
+            "power_entity_ids": power_entity_ids,  # Multiple entities
+            "device_id": device_id,
+            "area_id": primary_entity.area_id,
+        }
+
+        # Get device name based on the device or primary entity
+        if device_entry:
+            device_name = device_entry.name_by_user or device_entry.name
+            if device_name:
+                discovery_data["device_name"] = device_name
+                discovery_data["manufacturer"] = device_entry.manufacturer
+                discovery_data["model"] = device_entry.model
+                _LOGGER.debug("Using device name: %s for device %s", device_name, device_id)
+            else:
+                # Fallback to primary entity name if device has no name
+                entity_name = primary_entity.name or primary_entity.original_name
+                discovery_data["device_name"] = entity_name or primary_entity.entity_id.replace("sensor.", "").replace("_", " ").title()
+        else:
+            # No device, use primary entity name
+            entity_name = primary_entity.name or primary_entity.original_name
+            discovery_data["device_name"] = entity_name or primary_entity.entity_id.replace("sensor.", "").replace("_", " ").title()
+
+        # Create discovery flow with proper title
+        device_name = discovery_data.get("device_name", "Unknown Device")
+        entity_count = len(power_entities)
+        _LOGGER.info("Creating discovery flow for device %s with %d power entities: %s", 
+                    device_name, entity_count, ", ".join(power_entity_ids))
+        
+        try:
+            unique_id = f"powercalc_totals_device_{device_id}" if device_id else f"powercalc_totals_no_device_{primary_entity.entity_id}"
+            discovery_data["unique_id"] = unique_id
+            
+            discovery_flow.async_create_flow(
+                self.hass,
+                DOMAIN,
+                context={"source": SOURCE_INTEGRATION_DISCOVERY},
+                data=discovery_data,
+            )
+            _LOGGER.info("Discovery flow created successfully for device %s", device_name)
+        except Exception as e:
+            _LOGGER.error("Failed to create discovery flow for device %s: %s", device_name, e)
 
     async def _init_entity_discovery(
         self,
