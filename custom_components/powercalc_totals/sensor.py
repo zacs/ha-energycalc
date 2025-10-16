@@ -46,10 +46,17 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
             
             _LOGGER.debug(f"Calling super().__init__ with hass={hass}, integration_method={integration_method}")
             
+            # Create a clean name by removing "Power" from the end and adding "Energy"
+            base_name = power_entity_id.replace('sensor.', '').replace('_', ' ').title()
+            # Remove "Power" from the end if it exists to avoid "Power Energy"
+            if base_name.endswith(' Power'):
+                base_name = base_name[:-6]  # Remove " Power"
+            energy_name = f"{base_name} Energy"
+            
             super().__init__(
                 hass=hass,
                 integration_method=integration_method,
-                name=f"{power_entity_id.replace('sensor.', '').replace('_', ' ').title()} Energy",
+                name=energy_name,
                 round_digits=3,
                 source_entity=power_entity_id,
                 unique_id=unique_id,
