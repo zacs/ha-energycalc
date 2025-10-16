@@ -63,29 +63,68 @@ class PowerDeviceDiscovery:
         # Create discovery flows per device
         discovered_count = 0
         for device_id, entities_group in device_groups.items():
-            await self._init_device_discovery(entities_group, device_registry)
-            discovered_count += 1
+            if device_id is None:
+                # Handle entities without device_id individually
+                for entity in entities_group:
+                    await self._init_entity_discovery(entity, device_registry)
+                    discovered_count += 1
+            else:
+                # Handle entities with device_id as a group
+                await self._init_device_discovery(entities_group, device_registry)
+                discovered_count += 1
         
         _LOGGER.info("Discovery complete. Created %d discovered integration entries", discovered_count)
 
     def _get_power_entities(self) -> list[RegistryEntry]:
-        """Get all power entities from the entity registry."""
+        """Get all entities that measure power in watts."""
         registry = er.async_get(self.hass)
         power_entities = []
+        total_sensors = 0
+        disabled_count = 0
+        no_state_count = 0
+        
+        _LOGGER.debug("Checking %d entities in registry", len(registry.entities))
+        _LOGGER.debug("Exclude entities list: %s", self.exclude_entities)
         
         for entity in registry.entities.values():
-            # Skip entities that are in the exclude list
-            if entity.entity_id in self.exclude_entities:
+            if entity.domain == "sensor":
+                total_sensors += 1
+                
+            # Skip disabled entities
+            if entity.disabled:
+                disabled_count += 1
                 continue
                 
-            # Only consider power sensors with W unit of measurement
+            # Skip entities that are in the exclude list
+            if entity.entity_id in self.exclude_entities:
+                _LOGGER.debug("Skipping excluded entity: %s", entity.entity_id)
+                continue
+                
+            # Get the entity state to check unit
+            state = self.hass.states.get(entity.entity_id)
+            if not state:
+                no_state_count += 1
+                continue
+                
+            # Check if it's a power sensor with watts as unit
+            unit = state.attributes.get("unit_of_measurement")
+            device_class = state.attributes.get("device_class")
+            
             if (
-                entity.domain == "sensor"
-                and entity.device_class == SensorDeviceClass.POWER
-                and entity.unit_of_measurement in (UnitOfPower.WATT, UnitOfPower.KILO_WATT)
+                entity.domain == "sensor" 
+                and unit in [POWER_WATT, UnitOfPower.WATT]
+                and (device_class == "power" or device_class is None)
             ):
                 power_entities.append(entity)
+                _LOGGER.debug(
+                    "Found power entity: %s (unit=%s, device_class=%s)",
+                    entity.entity_id, unit, device_class
+                )
         
+        _LOGGER.info(
+            "Scanned %d total sensors, %d disabled, %d no state, found %d power entities",
+            total_sensors, disabled_count, no_state_count, len(power_entities)
+        )
         return power_entities
 
     def _has_energy_entity(

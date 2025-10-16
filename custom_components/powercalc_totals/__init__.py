@@ -10,6 +10,9 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.entity_registry import EVENT_ENTITY_REGISTRY_UPDATED, EventEntityRegistryUpdatedData
+from homeassistant.core import Event, callback
 
 from .const import (
     DOMAIN,
@@ -50,8 +53,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if exclude_entities:
             _LOGGER.debug("Excluded entities: %s", exclude_entities)
         
-        # Schedule discovery to run after Home Assistant has fully started
-        # This ensures all entities and devices are loaded
+        # Store exclude_entities in hass.data for periodic discovery
+        hass.data[DOMAIN]["exclude_entities"] = exclude_entities
+        
+        # Schedule initial discovery
         async def run_discovery():
             """Run discovery after startup."""
             import asyncio
@@ -61,6 +66,63 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             await discovery.async_discover_and_create_sensors()
         
         hass.async_create_task(run_discovery())
+        
+        # Set up periodic discovery every 24 hours (like Battery Notes)
+        async def periodic_discovery(now=None):
+            """Run periodic discovery for new devices."""
+            _LOGGER.info("Running periodic device discovery...")
+            discovery = PowerDeviceDiscovery(hass, exclude_entities=exclude_entities)
+            await discovery.async_discover_and_create_sensors()
+        
+        # Schedule periodic discovery
+        async_track_time_interval(hass, periodic_discovery, timedelta(hours=24))
+        
+        # Set up entity registry listener for real-time discovery (like Battery Notes)
+        @callback
+        async def entity_registry_updated(event: Event[EventEntityRegistryUpdatedData]) -> None:
+            """Handle entity registry updates."""
+            data = event.data
+            action = data["action"]
+            entity_id = data["entity_id"]
+            
+            _LOGGER.debug("Entity registry event: action=%s, entity_id=%s", action, entity_id)
+            
+            # Care about both newly created entities and updated entities (template reloads)
+            if action not in ["create", "update"]:
+                return
+                
+            # Check if it's a sensor (domain check)
+            if not entity_id.startswith("sensor."):
+                return
+            
+            # Wait a moment for the entity state to be available
+            import asyncio
+            await asyncio.sleep(1)
+            
+            # Check if it might be a power sensor by getting the state
+            state = hass.states.get(entity_id)
+            if not state:
+                _LOGGER.debug("No state found for entity: %s", entity_id)
+                return
+                
+            unit = state.attributes.get("unit_of_measurement")
+            device_class = state.attributes.get("device_class")
+            
+            _LOGGER.debug("Entity %s: unit=%s, device_class=%s", entity_id, unit, device_class)
+            
+            # Check for power sensors (with or without device_class, matching our discovery logic)
+            if unit in ["W", "watt", "watts"] and (device_class == "power" or device_class is None):
+                _LOGGER.info("New/updated power sensor detected: %s, triggering discovery", entity_id)
+                
+                # Run discovery for the new entity
+                discovery = PowerDeviceDiscovery(hass, exclude_entities=exclude_entities)
+                await discovery.async_discover_and_create_sensors()
+            else:
+                _LOGGER.debug("Entity %s is not a power sensor (unit=%s, device_class=%s)", 
+                             entity_id, unit, device_class)
+        
+        # Register the entity registry listener
+        hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, entity_registry_updated)
     else:
         _LOGGER.info("Power Calc Totals not configured in YAML, discovery disabled")
     
