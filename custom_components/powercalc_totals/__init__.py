@@ -50,8 +50,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         domain_config = config[DOMAIN]
         exclude_entities = domain_config.get("exclude_entities", [])
         _LOGGER.info("Power Calc Totals configured in YAML, starting discovery with %d excluded entities", len(exclude_entities))
-        if exclude_entities:
-            _LOGGER.debug("Excluded entities: %s", exclude_entities)
         
         # Store exclude_entities in hass.data for periodic discovery
         hass.data[DOMAIN]["exclude_entities"] = exclude_entities
@@ -85,8 +83,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             action = data["action"]
             entity_id = data["entity_id"]
             
-            _LOGGER.debug("Entity registry event: action=%s, entity_id=%s", action, entity_id)
-            
             # Care about both newly created entities and updated entities (template reloads)
             if action not in ["create", "update"]:
                 return
@@ -102,24 +98,18 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             # Check if it might be a power sensor by getting the state
             state = hass.states.get(entity_id)
             if not state:
-                _LOGGER.debug("No state found for entity: %s", entity_id)
                 return
                 
             unit = state.attributes.get("unit_of_measurement")
             device_class = state.attributes.get("device_class")
             
-            _LOGGER.debug("Entity %s: unit=%s, device_class=%s", entity_id, unit, device_class)
-            
             # Check for power sensors (with or without device_class, matching our discovery logic)
             if unit in ["W", "watt", "watts"] and (device_class == "power" or device_class is None):
-                _LOGGER.info("New/updated power sensor detected: %s, triggering discovery", entity_id)
+                _LOGGER.info("New power sensor detected: %s, triggering discovery", entity_id)
                 
                 # Run discovery for the new entity
                 discovery = PowerDeviceDiscovery(hass, exclude_entities=exclude_entities)
                 await discovery.async_discover_and_create_sensors()
-            else:
-                _LOGGER.debug("Entity %s is not a power sensor (unit=%s, device_class=%s)", 
-                             entity_id, unit, device_class)
         
         # Register the entity registry listener
         hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, entity_registry_updated)

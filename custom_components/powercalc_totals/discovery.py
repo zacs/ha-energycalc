@@ -83,9 +83,6 @@ class PowerDeviceDiscovery:
         disabled_count = 0
         no_state_count = 0
         
-        _LOGGER.debug("Checking %d entities in registry", len(registry.entities))
-        _LOGGER.debug("Exclude entities list: %s", self.exclude_entities)
-        
         for entity in registry.entities.values():
             if entity.domain == "sensor":
                 total_sensors += 1
@@ -97,7 +94,6 @@ class PowerDeviceDiscovery:
                 
             # Skip entities that are in the exclude list
             if entity.entity_id in self.exclude_entities:
-                _LOGGER.debug("Skipping excluded entity: %s", entity.entity_id)
                 continue
                 
             # Get the entity state to check unit
@@ -116,10 +112,6 @@ class PowerDeviceDiscovery:
                 and (device_class == "power" or device_class is None)
             ):
                 power_entities.append(entity)
-                _LOGGER.debug(
-                    "Found power entity: %s (unit=%s, device_class=%s)",
-                    entity.entity_id, unit, device_class
-                )
         
         _LOGGER.info(
             "Scanned %d total sensors, %d disabled, %d no state, found %d power entities",
