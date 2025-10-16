@@ -52,14 +52,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     _LOGGER.info("Setting up config entry: %s with data: %s", entry.title, entry.data)
     
-    # Check if this is the main discovery config entry or a specific power entity entry
-    if entry.data.get("setup_mode") == "discovery":
-        # This is the main integration entry - run discovery
-        _LOGGER.info("Main integration entry - running discovery")
-        discovery = PowerDeviceDiscovery(hass)
-        await discovery.async_discover_and_create_sensors()
-        return True
-    elif "power_entity_id" in entry.data:
+    # Only handle specific power entity entries - no main discovery entry needed
+    if "power_entity_id" in entry.data:
         # This is a specific power entity entry - set up platforms for it
         _LOGGER.info("Power entity entry - setting up platforms for %s", entry.data["power_entity_id"])
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

@@ -118,19 +118,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle a flow initialized by the user."""
-        if user_input is not None:
-            # Create a main config entry that will trigger discovery
-            return self.async_create_entry(
-                title="Power Calc Totals",
-                data={"setup_mode": "discovery"},
-            )
-        
-        return self.async_show_form(
-            step_id="user",
-            description_placeholders={
-                "name": "Power Calc Totals",
-            },
-        )
+        # Don't allow manual setup - this integration is discovery-only
+        return self.async_abort(reason="not_supported")
 
     def _extract_device_name(self, entity_id: str) -> str:
         """Extract a human-readable device name from entity ID."""
