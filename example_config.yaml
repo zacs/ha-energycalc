@@ -1,7 +1,7 @@
 # Example configuration for Power Calc Totals
 
-# The component will automatically discover power entities and create energy sensors
-# No YAML configuration is required - use the UI to set up the integration
+# Add this to your configuration.yaml to enable automatic device discovery
+powercalc_totals:
 
 # However, you can manually create sensors using services if needed:
 

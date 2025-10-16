@@ -19,52 +19,22 @@ Many devices provide real-time power consumption data but don't track total ener
 
 ## Installation
 
-### Manual Installation
+### 1. Place Files
+- Copy this folder to your Home Assistant `config/custom_components/` directory
 
-1. Copy the `custom_components/powercalc_totals` directory to your Home Assistant `custom_components` directory
-2. Restart Home Assistant
-3. Go to Settings → Devices & Services → Add Integration
-4. Search for "Power Calc Totals" and follow the setup process
-
-### HACS Installation
-
-1. Add this repository to HACS as a custom repository
-2. Search for "Power Calc Totals" in HACS
-3. Install and restart Home Assistant
-4. Add the integration through the UI
-
-## Configuration
-
-### Initial Setup
-
-1. Navigate to **Settings** → **Devices & Services**
-2. Click **Add Integration** and search for "Power Calc Totals"
-3. Choose whether to automatically create energy sensors for discovered power entities
-4. Complete the setup
-
-### Manual Sensor Creation
-
-You can manually create energy sensors using the provided services:
-
-#### Create Energy Sensor Service
-
+### 2. Add to Configuration
+- Add the following to your `configuration.yaml`:
 ```yaml
-service: powercalc_totals.create_energy_sensor
-data:
-  source_entity: sensor.device_power
-  integration_method: trapezoidal  # Options: trapezoidal, left, right
-  round_digits: 2
-  unit_prefix: k  # 'k' for kWh, '' for Wh
-  max_sub_interval_minutes: 5
+powercalc_totals:
 ```
 
-#### Remove Energy Sensor Service
+### 3. Restart Home Assistant
+- Restart your Home Assistant instance to load the integration
 
-```yaml
-service: powercalc_totals.remove_energy_sensor
-data:
-  entity_id: sensor.device_total_energy
-```
+After setup, the component will:
+- Automatically scan all your devices for power sensors without corresponding energy sensors
+- Present discovered entities through the Integrations page
+- Allow you to confirm and create energy sensors for each discovered power entity
 
 ## How It Works
 

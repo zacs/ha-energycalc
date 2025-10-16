@@ -118,28 +118,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle a flow initialized by the user."""
-        # Check if we already have the main discovery entry
-        existing_entries = [
-            entry for entry in self.hass.config_entries.async_entries(DOMAIN)
-            if entry.data.get("setup_mode") == "discovery"
-        ]
-        if existing_entries:
-            return self.async_abort(reason="single_instance_allowed")
-        
-        if user_input is not None:
-            # Create a minimal config entry that enables discovery but doesn't create entities
-            return self.async_create_entry(
-                title="Power Calc Totals",
-                data={"setup_mode": "discovery"},
-                options={}
-            )
-        
-        return self.async_show_form(
-            step_id="user",
-            description_placeholders={
-                "name": "Power Calc Totals",
-            },
-        )
+        # Don't allow manual setup - this integration is YAML configuration only
+        return self.async_abort(reason="not_supported")
 
     def _extract_device_name(self, entity_id: str) -> str:
         """Extract a human-readable device name from entity ID."""
