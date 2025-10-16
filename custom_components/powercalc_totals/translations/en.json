@@ -22,7 +22,8 @@
     },
     "abort": {
       "already_configured": "Energy sensor is already configured for this power entity",
-      "not_supported": "Manual configuration is not supported. Power Calc Totals automatically discovers devices that need energy sensors."
+      "not_supported": "Manual configuration is not supported. Power Calc Totals automatically discovers devices that need energy sensors.",
+      "single_instance_allowed": "Power Calc Totals is already configured. Discovery runs automatically."
     }
   },
   "title": "Power Calc Totals"
