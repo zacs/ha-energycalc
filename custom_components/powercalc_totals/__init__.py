@@ -68,9 +68,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("Setting up config entry: %s with data: %s", entry.title, entry.data)
     
     # Only handle specific power entity entries - no main discovery entry needed
-    if "power_entity_id" in entry.data:
-        # This is a specific power entity entry - set up platforms for it
-        _LOGGER.info("Power entity entry - setting up platforms for %s", entry.data["power_entity_id"])
+    if "power_entity_id" in entry.data or "power_entity_ids" in entry.data:
+        # This is a power entity entry (single or multiple) - set up platforms for it
+        if "power_entity_ids" in entry.data:
+            entity_info = f"{len(entry.data['power_entity_ids'])} power entities"
+        else:
+            entity_info = entry.data["power_entity_id"]
+        
+        _LOGGER.info("Power entity entry - setting up platforms for %s", entity_info)
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         return True
     else:

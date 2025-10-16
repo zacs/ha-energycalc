@@ -8,11 +8,11 @@
       },
       "integration_discovery": {
         "title": "Power Calc Totals: {name}",
-        "description": "Do you want to add energy sensors for **{name}**? This will create energy tracking for all power entities on this device."
+        "description": "Do you want to add energy sensors for **{name}**? This will create energy tracking for all power outlets on this device."
       },
       "confirm": {
         "title": "Power Calc Totals: {name}",
-        "description": "This will create energy sensors for all power entities on **{name}**."
+        "description": "This will create energy sensors for all power outlets on **{name}**."
       }
     },
     "error": {

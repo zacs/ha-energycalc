@@ -79,7 +79,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         display_text = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} outlets)"
         self.context["title_placeholders"] = {
             "name": display_text,
-            "power_entity": primary_entity_id,  # Show primary entity in description
             "manufacturer": discovery_info.get("manufacturer", ""),
             "model": discovery_info.get("model", ""),
         }
@@ -119,7 +118,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="confirm",
             description_placeholders={
                 "name": display_name,
-                "power_entity": primary_entity_id,
             },
         )
 
