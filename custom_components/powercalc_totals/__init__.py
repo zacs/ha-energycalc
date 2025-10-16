@@ -25,7 +25,9 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 # YAML configuration schema
 CONFIG_SCHEMA = vol.Schema(
     {
-        DOMAIN: vol.Schema({}),
+        DOMAIN: vol.Schema({
+            vol.Optional("exclude_entities", default=[]): vol.All(cv.ensure_list, [cv.entity_id]),
+        }),
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -42,7 +44,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     
     # Only run discovery if domain is configured in YAML
     if DOMAIN in config:
-        _LOGGER.info("Power Calc Totals configured in YAML, starting discovery")
+        domain_config = config[DOMAIN]
+        exclude_entities = domain_config.get("exclude_entities", [])
+        _LOGGER.info("Power Calc Totals configured in YAML, starting discovery with %d excluded entities", len(exclude_entities))
+        if exclude_entities:
+            _LOGGER.debug("Excluded entities: %s", exclude_entities)
+        
         # Schedule discovery to run after Home Assistant has fully started
         # This ensures all entities and devices are loaded
         async def run_discovery():
@@ -50,7 +57,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             import asyncio
             # Wait a bit to ensure all entities are loaded
             await asyncio.sleep(5)
-            discovery = PowerDeviceDiscovery(hass)
+            discovery = PowerDeviceDiscovery(hass, exclude_entities=exclude_entities)
             await discovery.async_discover_and_create_sensors()
         
         hass.async_create_task(run_discovery())

@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.config_entries import SOURCE_INTEGRATION_DISCOVERY
 from homeassistant.const import UnitOfPower, UnitOfEnergy, UnitOfTime
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er, discovery_flow
 from homeassistant.helpers.entity_registry import RegistryEntry
@@ -23,9 +24,10 @@ _LOGGER = logging.getLogger(__name__)
 class PowerDeviceDiscovery:
     """Discover devices with power entities but missing energy entities."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, exclude_entities: list[str] | None = None) -> None:
         """Initialize the discovery."""
         self.hass = hass
+        self.exclude_entities = exclude_entities or []
         self._discovered_entities: dict[str, dict[str, Any]] = {}
 
     async def async_discover_and_create_sensors(self) -> None:
@@ -36,7 +38,7 @@ class PowerDeviceDiscovery:
         device_registry = dr.async_get(self.hass)
         
         # Get all power entities
-        power_entities = self._get_power_entities(entity_registry)
+        power_entities = self._get_power_entities()
         _LOGGER.info("Found %d power entities to check", len(power_entities))
         
         # Filter entities that need energy sensors
@@ -66,47 +68,24 @@ class PowerDeviceDiscovery:
         
         _LOGGER.info("Discovery complete. Created %d discovered integration entries", discovered_count)
 
-    def _get_power_entities(self, entity_registry: er.EntityRegistry) -> list[RegistryEntry]:
-        """Get all entities that measure power in watts."""
+    def _get_power_entities(self) -> list[RegistryEntry]:
+        """Get all power entities from the entity registry."""
+        registry = er.async_get(self.hass)
         power_entities = []
-        total_sensors = 0
-        disabled_count = 0
-        no_state_count = 0
         
-        for entity in entity_registry.entities.values():
-            if entity.domain == "sensor":
-                total_sensors += 1
-                
-            # Skip disabled entities
-            if entity.disabled:
-                disabled_count += 1
+        for entity in registry.entities.values():
+            # Skip entities that are in the exclude list
+            if entity.entity_id in self.exclude_entities:
                 continue
                 
-            # Get the entity state to check unit
-            state = self.hass.states.get(entity.entity_id)
-            if not state:
-                no_state_count += 1
-                continue
-                
-            # Check if it's a power sensor with watts as unit
-            unit = state.attributes.get("unit_of_measurement")
-            device_class = state.attributes.get("device_class")
-            
+            # Only consider power sensors with W unit of measurement
             if (
-                entity.domain == "sensor" 
-                and unit in [POWER_WATT, UnitOfPower.WATT]
-                and (device_class == "power" or device_class is None)
+                entity.domain == "sensor"
+                and entity.device_class == SensorDeviceClass.POWER
+                and entity.unit_of_measurement in (UnitOfPower.WATT, UnitOfPower.KILO_WATT)
             ):
                 power_entities.append(entity)
-                _LOGGER.debug(
-                    "Found power entity: %s (unit=%s, device_class=%s)",
-                    entity.entity_id, unit, device_class
-                )
         
-        _LOGGER.info(
-            "Scanned %d total sensors, %d disabled, %d no state, found %d power entities",
-            total_sensors, disabled_count, no_state_count, len(power_entities)
-        )
         return power_entities
 
     def _has_energy_entity(

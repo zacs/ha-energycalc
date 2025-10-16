@@ -28,6 +28,21 @@ Many devices provide real-time power consumption data but don't track total ener
 powercalc_totals:
 ```
 
+#### Optional: Exclude Specific Entities
+You can prevent certain power entities from being discovered by listing them in the `exclude_entities` configuration:
+```yaml
+powercalc_totals:
+  exclude_entities:
+    - sensor.zigbee_power_budget
+    - sensor.ups_power_static
+    - sensor.server_power_baseline
+```
+
+This is useful for excluding:
+- Static/baseline power sensors that don't change
+- Administrative power entities like "power budget" sensors
+- Power sensors you don't want energy tracking for
+
 ### 3. Restart Home Assistant
 - Restart your Home Assistant instance to load the integration
 

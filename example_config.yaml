@@ -2,6 +2,10 @@
 
 # Add this to your configuration.yaml to enable automatic device discovery
 powercalc_totals:
+  exclude_entities:
+    - sensor.zigbee_power_budget
+    - sensor.ups_power_static
+    - sensor.server_power_baseline
 
 # However, you can manually create sensors using services if needed:
 
