@@ -1,22 +1,9 @@
 # EnergyCalc
 
 [![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-#### Create E**Example**:
-```yaml
-service: energycalc.create_energy_sensor
-data:
-  source_entity: sensor.custom_device_power
-  integration_method: trapezoidal
-  round_digits: 3
-  unit_prefix: k
-  max_sub_interval_minutes: 2
-```
-
-#### Remove Energy Sensor  
-**Service**: `energycalc.remove_energy_sensor`**Service**: `energycalc.create_energy_sensor`ield]][commits]
+[![GitHub Activity][commit-shield]][commits]
 [![License][license-shield]](LICENSE)
 [![hacs][hacsbadge]][hacs]
-[![Community Forum][forum-shield]][forum]
 
 A Home Assistant custom component that automatically discovers devices with power sensors (W) but missing total energy sensors (kWh) and offers to create energy tracking entities. This is useful for integrating power-only devices with Home Assistant's Energy Dashboard.
 
