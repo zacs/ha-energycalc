@@ -1,5 +1,11 @@
 # Power Calc Totals
 
+[![GitHub Release][releases-shield]][releases]
+[![GitHub Activity][commits-shield]][commits]
+[![License][license-shield]](LICENSE)
+[![hacs][hacsbadge]][hacs]
+[![Community Forum][forum-shield]][forum]
+
 A Home Assistant custom component that automatically discovers devices with power sensors (W) but missing total energy sensors (kWh) and offers to create energy tracking entities. This is useful for integrating power-only devices with Home Assistant's Energy Dashboard.
 
 ## Overview
@@ -134,4 +140,17 @@ Issues and pull requests are welcome! Please check the existing issues before cr
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License.
+
+---
+
+[powercalc_totals]: https://github.com/zacs/powercalc_totals
+[commits-shield]: https://img.shields.io/github/commit-activity/y/zacs/powercalc_totals.svg?style=for-the-badge
+[commits]: https://github.com/zacs/powercalc_totals/commits/main
+[hacs]: https://github.com/hacs/integration
+[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
+[forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
+[forum]: https://community.home-assistant.io/
+[license-shield]: https://img.shields.io/github/license/zacs/powercalc_totals.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/zacs/powercalc_totals.svg?style=for-the-badge
+[releases]: https://github.com/zacs/powercalc_totals/releases 
