@@ -1,7 +1,5 @@
 {
   "name": "EnergyCalc",
   "hacs": "1.6.0",
-  "domains": ["sensor"],
-  "iot_class": "Calculated",
   "homeassistant": "2023.1.0"
 }
