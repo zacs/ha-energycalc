@@ -1,4 +1,4 @@
-# Power Calc Totals
+# EnergyCalc
 
 Automatically discovers devices with power sensors (W) but missing energy sensors (kWh) and creates energy tracking entities for Home Assistant's Energy Dashboard.
 
@@ -13,10 +13,10 @@ Automatically discovers devices with power sensors (W) but missing energy sensor
 
 ## Quick Setup
 
-1. **Install via HACS** or copy to `custom_components/powercalc_totals/`
+1. **Install via HACS** or copy to `custom_components/energycalc/`
 2. **Add to configuration.yaml**:
    ```yaml
-   powercalc_totals:
+   energycalc:
    ```
 3. **Restart Home Assistant**
 4. **Check Integrations page** for discovered power devices
@@ -33,12 +33,12 @@ Perfect for devices that provide power data but no energy totals:
 
 ### Basic Setup
 ```yaml
-powercalc_totals:
+energycalc:
 ```
 
 ### Exclude Unwanted Sensors
 ```yaml
-powercalc_totals:
+energycalc:
   exclude_entities:
     - sensor.power_budget
     - sensor.baseline_power
@@ -58,7 +58,7 @@ Generated energy sensors use trapezoidal integration for accurate energy calcula
 ## Advanced Usage
 
 Manual services available for custom configuration:
-- `powercalc_totals.create_energy_sensor` - Create with custom settings
-- `powercalc_totals.remove_energy_sensor` - Remove unwanted sensors
+- `energycalc.create_energy_sensor` - Create with custom settings
+- `energycalc.remove_energy_sensor` - Remove unwanted sensors
 
-See the [full documentation](https://github.com/zacs/powercalc_totals) for complete details.
+See the [full documentation](https://github.com/zacs/energycalc) for complete details.

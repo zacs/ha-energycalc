@@ -1,4 +1,4 @@
-"""Services for Power Calc Totals."""
+"""Services for EnergyCalc."""
 from __future__ import annotations
 
 import logging
@@ -49,7 +49,7 @@ REMOVE_ENERGY_SENSOR_SCHEMA = vol.Schema({
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
-    """Set up services for Power Calc Totals."""
+    """Set up services for EnergyCalc."""
     
     async def async_create_energy_sensor(call: ServiceCall) -> None:
         """Create an energy sensor for a power entity."""

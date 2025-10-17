@@ -1,7 +1,7 @@
-# Example configuration for Power Calc Totals
+# Example configuration for EnergyCalc
 
 # Add this to your configuration.yaml to enable automatic device discovery
-powercalc_totals:
+energycalc:
   exclude_entities:
     - sensor.zigbee_power_budget
     - sensor.ups_power_static
@@ -10,7 +10,7 @@ powercalc_totals:
 # However, you can manually create sensors using services if needed:
 
 # Create an energy sensor for a power entity
-# service: powercalc_totals.create_energy_sensor
+# service: energycalc.create_energy_sensor
 # data:
 #   source_entity: sensor.unifi_pdu_outlet_1_power
 #   integration_method: trapezoidal
@@ -19,6 +19,6 @@ powercalc_totals:
 #   max_sub_interval_minutes: 5
 
 # Remove an energy sensor
-# service: powercalc_totals.remove_energy_sensor
+# service: energycalc.remove_energy_sensor
 # data:
 #   entity_id: sensor.unifi_pdu_outlet_1_total_energy

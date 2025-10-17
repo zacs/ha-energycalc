@@ -1,9 +1,9 @@
-"""Constants for the Power Calc Totals integration."""
+"""Constants for the EnergyCalc integration."""
 from __future__ import annotations
 
 from typing import Final
 
-DOMAIN: Final = "powercalc_totals"
+DOMAIN: Final = "energycalc"
 
 # Configuration
 CONF_CREATE_ENERGY_SENSOR: Final = "create_energy_sensor"

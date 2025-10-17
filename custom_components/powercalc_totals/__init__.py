@@ -1,4 +1,4 @@
-"""The Power Calc Totals integration."""
+"""The EnergyCalc integration."""
 from __future__ import annotations
 
 import logging
@@ -39,7 +39,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the Power Calc Totals component."""
+    """Set up the EnergyCalc component."""
     hass.data.setdefault(DOMAIN, {})
     
     # Set up services
@@ -49,7 +49,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if DOMAIN in config:
         domain_config = config[DOMAIN]
         exclude_entities = domain_config.get("exclude_entities", [])
-        _LOGGER.info("Power Calc Totals configured in YAML, starting discovery with %d excluded entities", len(exclude_entities))
+        _LOGGER.info("EnergyCalc configured in YAML, starting discovery with %d excluded entities", len(exclude_entities))
         
         # Store exclude_entities in hass.data for periodic discovery
         hass.data[DOMAIN]["exclude_entities"] = exclude_entities
@@ -114,13 +114,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         # Register the entity registry listener
         hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, entity_registry_updated)
     else:
-        _LOGGER.info("Power Calc Totals not configured in YAML, discovery disabled")
+        _LOGGER.info("EnergyCalc not configured in YAML, discovery disabled")
     
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Power Calc Totals from a config entry."""
+    """Set up EnergyCalc from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {}
     

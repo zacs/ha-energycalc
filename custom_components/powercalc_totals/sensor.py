@@ -1,4 +1,4 @@
-"""Integration sensor for Power Calc Totals."""
+"""Integration sensor for EnergyCalc."""
 from __future__ import annotations
 
 import logging
@@ -135,7 +135,7 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info=None,
 ) -> None:
-    """Set up the Power Calc Totals sensor platform."""
+    """Set up the EnergyCalc sensor platform."""
     # This function is called by the platform setup
     # Actual entity creation is handled by services
     pass
@@ -146,7 +146,7 @@ async def async_setup_entry(
     config_entry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Power Calc Totals sensor entities from a config entry."""
+    """Set up EnergyCalc sensor entities from a config entry."""
     _LOGGER.debug(f"Setting up sensor platform for config entry: {config_entry.entry_id}")
     _LOGGER.debug(f"Config entry data: {config_entry.data}")
     

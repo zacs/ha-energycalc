@@ -1,4 +1,4 @@
-"""Config flow for Power Calc Totals integration."""
+"""Config flow for EnergyCalc integration."""
 from __future__ import annotations
 
 import logging
@@ -21,7 +21,7 @@ __all__ = ["ConfigFlow"]
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Power Calc Totals."""
+    """Handle a config flow for EnergyCalc."""
 
     VERSION = 1
     
@@ -46,7 +46,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Legacy single entity format (for backward compatibility)
             power_entity_ids = [discovery_info["power_entity_id"]]
             primary_entity_id = discovery_info["power_entity_id"]
-            unique_id = f"powercalc_totals_{primary_entity_id}"
+            unique_id = f"energycalc_{primary_entity_id}"
         
         await self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
@@ -145,7 +145,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle options flow for Power Calc Totals."""
+    """Handle options flow for EnergyCalc."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""

@@ -1,7 +1,19 @@
-# Power Calc Totals
+# EnergyCalc
 
 [![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-shield]][commits]
+[![GitHub Activity][commits-#### Create E**Example**:
+```yaml
+service: energycalc.create_energy_sensor
+data:
+  source_entity: sensor.custom_device_power
+  integration_method: trapezoidal
+  round_digits: 3
+  unit_prefix: k
+  max_sub_interval_minutes: 2
+```
+
+#### Remove Energy Sensor  
+**Service**: `energycalc.remove_energy_sensor`**Service**: `energycalc.create_energy_sensor`ield]][commits]
 [![License][license-shield]](LICENSE)
 [![hacs][hacsbadge]][hacs]
 [![Community Forum][forum-shield]][forum]
@@ -34,15 +46,16 @@ NOTE: The discovery happens at the device level, so if you have a device that ha
 ### 2. Add to Configuration
 - Add the following to your `configuration.yaml`:
 ```yaml
-powercalc_totals:
+energycalc:
 ```
 
 #### Optional: Exclude Specific Entities
 You can prevent certain power entities from being discovered by listing them in the `exclude_entities` configuration:
 ```yaml
-powercalc_totals:
+energycalc:
   exclude_entities:
-    - sensor.pdu_pro_ac_power_budget
+    - sensor.zigbee_power_budget
+    - sensor.ups_power_static
     - sensor.server_power_baseline
 ```
 
@@ -87,7 +100,7 @@ Generated entities follow this pattern:
 While the integration primarily works through automatic discovery, you can also manually create and manage energy sensors using services:
 
 ### Create Energy Sensor
-**Service**: `powercalc_totals.create_energy_sensor`
+**Service**: `energycalc.create_energy_sensor`
 
 Manually create an energy sensor for any power entity, with full control over calculation parameters.
 
@@ -100,7 +113,7 @@ Manually create an energy sensor for any power entity, with full control over ca
 
 **Example**:
 ```yaml
-service: powercalc_totals.create_energy_sensor
+service: energycalc.create_energy_sensor
 data:
   source_entity: sensor.custom_device_power
   integration_method: trapezoidal
@@ -110,7 +123,7 @@ data:
 ```
 
 ### Remove Energy Sensor  
-**Service**: `powercalc_totals.remove_energy_sensor`
+**Service**: `energycalc.remove_energy_sensor`
 
 Remove an energy sensor created by this integration.
 
@@ -119,7 +132,7 @@ Remove an energy sensor created by this integration.
 
 **Example**:
 ```yaml
-service: powercalc_totals.remove_energy_sensor
+service: energycalc.remove_energy_sensor
 data:
   entity_id: sensor.custom_device_energy
 ```
@@ -144,13 +157,13 @@ This project is licensed under the MIT License.
 
 ---
 
-[powercalc_totals]: https://github.com/zacs/powercalc_totals
-[commits-shield]: https://img.shields.io/github/commit-activity/y/zacs/powercalc_totals.svg?style=for-the-badge
-[commits]: https://github.com/zacs/powercalc_totals/commits/main
+[energycalc]: https://github.com/zacs/energycalc
+[commits-shield]: https://img.shields.io/github/commit-activity/y/zacs/energycalc.svg?style=for-the-badge
+[commits]: https://github.com/zacs/energycalc/commits/main
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
 [forum]: https://community.home-assistant.io/
-[license-shield]: https://img.shields.io/github/license/zacs/powercalc_totals.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/zacs/powercalc_totals.svg?style=for-the-badge
-[releases]: https://github.com/zacs/powercalc_totals/releases 
+[license-shield]: https://img.shields.io/github/license/zacs/energycalc.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/zacs/energycalc.svg?style=for-the-badge
+[releases]: https://github.com/zacs/energycalc/releases 

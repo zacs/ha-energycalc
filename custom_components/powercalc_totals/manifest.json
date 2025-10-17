@@ -1,13 +1,13 @@
 {
-  "domain": "powercalc_totals",
-  "name": "Power Calc Totals",
+  "domain": "energycalc",
+  "name": "EnergyCalc",
   "codeowners": ["@zacs"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/zacs/powercalc_totals",
+  "documentation": "https://github.com/zacs/energycalc",
   "integration_type": "device",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/zacs/powercalc_totals/issues",
+  "issue_tracker": "https://github.com/zacs/energycalc/issues",
   "requirements": [],
   "version": "1.0.0"
 }

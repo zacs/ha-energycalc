@@ -1,5 +1,5 @@
 {
-  "name": "Power Calc Totals",
+  "name": "EnergyCalc",
   "hacs": "1.6.0",
   "domains": ["sensor"],
   "iot_class": "Calculated",

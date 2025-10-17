@@ -2,16 +2,16 @@
   "config": {
     "step": {
       "user": {
-        "title": "Power Calc Totals",
-        "description": "Power Calc Totals will automatically discover devices with power sensors that need energy sensors and create discovered integrations for each one.",
+        "title": "EnergyCalc",
+        "description": "EnergyCalc will automatically discover devices with power sensors that need energy sensors and create discovered integrations for each one.",
         "data": {}
       },
       "integration_discovery": {
-        "title": "Power Calc Totals: {name}",
+        "title": "EnergyCalc: {name}",
         "description": "Do you want to add energy sensors for **{name}**? This will create energy tracking for all power outlets on this device."
       },
       "confirm": {
-        "title": "Power Calc Totals: {name}",
+        "title": "EnergyCalc: {name}",
         "description": "This will create energy sensors for all power outlets on **{name}**."
       }
     },
@@ -22,9 +22,9 @@
     },
     "abort": {
       "already_configured": "Energy sensor is already configured for this power entity",
-      "not_supported": "Manual configuration is not supported. Add 'powercalc_totals:' to your configuration.yaml to enable automatic device discovery.",
-      "single_instance_allowed": "Power Calc Totals is already configured. Discovery runs automatically."
+      "not_supported": "Manual configuration is not supported. Add 'energycalc:' to your configuration.yaml to enable automatic device discovery.",
+      "single_instance_allowed": "EnergyCalc is already configured. Discovery runs automatically."
     }
   },
-  "title": "Power Calc Totals"
+  "title": "EnergyCalc"
 }

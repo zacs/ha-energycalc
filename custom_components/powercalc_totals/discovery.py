@@ -1,4 +1,4 @@
-"""Device discovery for Power Calc Totals."""
+"""Device discovery for EnergyCalc."""
 from __future__ import annotations
 
 import logging
@@ -207,7 +207,7 @@ class PowerDeviceDiscovery:
         device_id = primary_entity.device_id
         
         # Check if we already have a config entry for this device
-        expected_unique_id = f"powercalc_totals_device_{device_id}" if device_id else f"powercalc_totals_no_device_{primary_entity.entity_id}"
+        expected_unique_id = f"energycalc_device_{device_id}" if device_id else f"energycalc_no_device_{primary_entity.entity_id}"
         existing_entries = [
             entry
             for entry in self.hass.config_entries.async_entries(DOMAIN)
@@ -257,7 +257,7 @@ class PowerDeviceDiscovery:
                     device_name, entity_count, ", ".join(power_entity_ids))
         
         try:
-            unique_id = f"powercalc_totals_device_{device_id}" if device_id else f"powercalc_totals_no_device_{primary_entity.entity_id}"
+            unique_id = f"energycalc_device_{device_id}" if device_id else f"energycalc_no_device_{primary_entity.entity_id}"
             discovery_data["unique_id"] = unique_id
             
             discovery_flow.async_create_flow(
@@ -280,7 +280,7 @@ class PowerDeviceDiscovery:
         existing_entries = [
             entry
             for entry in self.hass.config_entries.async_entries(DOMAIN)
-            if entry.unique_id == f"powercalc_totals_{power_entity.entity_id}"
+            if entry.unique_id == f"energycalc_{power_entity.entity_id}"
         ]
         if existing_entries:
             _LOGGER.debug(

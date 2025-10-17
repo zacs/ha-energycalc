@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.0.0] - 2025-10-17
 
 ### Added
-- Initial release of Power Calc Totals integration
+- Initial release of EnergyCalc integration
 - Automatic discovery of power entities without corresponding energy entities
 - Real-time detection of new power sensors via entity registry listeners
 - Periodic discovery every 24 hours as backup
