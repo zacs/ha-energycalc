@@ -1,7 +1,7 @@
 # EnergyCalc
 
 [![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commit-shield]][commits]
+[![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE)
 [![hacs][hacsbadge]][hacs]
 
@@ -144,13 +144,13 @@ This project is licensed under the MIT License.
 
 ---
 
-[energycalc]: https://github.com/zacs/energycalc
-[commits-shield]: https://img.shields.io/github/commit-activity/y/zacs/energycalc.svg?style=for-the-badge
-[commits]: https://github.com/zacs/energycalc/commits/main
+[energycalc]: https://github.com/zacs/ha-energycalc
+[commits-shield]: https://img.shields.io/github/commit-activity/y/zacs/ha-energycalc.svg?style=for-the-badge
+[commits]: https://github.com/zacs/ha-energycalc/commits/main
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
 [forum]: https://community.home-assistant.io/
-[license-shield]: https://img.shields.io/github/license/zacs/energycalc.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/zacs/energycalc.svg?style=for-the-badge
-[releases]: https://github.com/zacs/energycalc/releases 
+[license-shield]: https://img.shields.io/github/license/zacs/ha-energycalc.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/zacs/ha-energycalc.svg?style=for-the-badge
+[releases]: https://github.com/zacs/ha-energycalc/releases 

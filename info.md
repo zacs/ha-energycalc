@@ -61,4 +61,4 @@ Manual services available for custom configuration:
 - `energycalc.create_energy_sensor` - Create with custom settings
 - `energycalc.remove_energy_sensor` - Remove unwanted sensors
 
-See the [full documentation](https://github.com/zacs/energycalc) for complete details.
+See the [full documentation](https://github.com/zacs/ha-energycalc) for complete details.
