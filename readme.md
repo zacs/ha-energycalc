@@ -9,13 +9,16 @@ Many devices provide real-time power consumption data but don't track total ener
 1. **Automatic Discovery**: Scans your Home Assistant instance for power entities (watts) that don't have corresponding energy entities (kWh)
 2. **Energy Calculation**: Creates integration sensors that calculate total energy consumption using trapezoidal integration
 3. **Energy Dashboard Integration**: Generated sensors work seamlessly with Home Assistant's Energy Dashboard
+4. **Device Integration**: Created sensors are automatically "appended" to existing devices (eg. they will show up on the device page automatically)
+
+NOTE: The discovery happens at the device level, so if you have a device that has 5 power-monitored outlets, discovery will let you add the device as a whole (all 5 outlets), creating 5 new energy sensors linked to that device. 
 
 ## Example Use Cases
 
-- **Unifi PDU Pro**: Provides power data for each outlet but no energy totals
-- **WattBox**: Similar to Unifi PDU, offers power monitoring without energy tracking
 - **Smart Switches**: Many provide instantaneous power but lack energy accumulation
 - **DIY Power Monitors**: Custom sensors that measure power but don't track totals
+- **Unifi PDU Pro**: Provides power data for each outlet but no energy totals
+- **PoE Switches**: Frequently offers power monitoring per-port without energy tracking
 
 ## Installation
 
@@ -33,8 +36,7 @@ You can prevent certain power entities from being discovered by listing them in 
 ```yaml
 powercalc_totals:
   exclude_entities:
-    - sensor.zigbee_power_budget
-    - sensor.ups_power_static
+    - sensor.pdu_pro_ac_power_budget
     - sensor.server_power_baseline
 ```
 
@@ -50,40 +52,81 @@ After setup, the component will:
 - Automatically scan all your devices for power sensors without corresponding energy sensors
 - Present discovered entities through the Integrations page
 - Allow you to confirm and create energy sensors for each discovered power entity
+- Continue discovering new power sensors automatically (real-time + every 24 hours)
 
 ## How It Works
 
 ### Discovery Process
 
 The component analyzes your entity registry to find:
-- **Power Entities**: Sensors with `W` or `watt` units and `power` device class
+- **Power Entities**: Sensors with `W` or `watt` units (device class is optional)
 - **Missing Energy Entities**: Checks if corresponding energy sensors already exist
+
+Note: The component will attempt to find devices first, but will also look for power entities that don't have a similarly-named corresponding energy entity. Please file bugs if you notice any weirdness with the entity-based discovery. 
 
 ### Energy Calculation
 
 Uses Home Assistant's built-in integration sensor with:
-- **Trapezoidal Integration**: Default method for accurate energy calculation
-- **Configurable Intervals**: Maximum 5-minute sub-intervals to balance accuracy and performance
+- **Trapezoidal Integration**: Fixed method for accurate energy calculation
 - **Automatic Unit Conversion**: Converts watts to kilowatt-hours for Energy Dashboard compatibility
 
 ### Entity Naming
 
 Generated entities follow this pattern:
 - **Source**: `sensor.device_power`
-- **Created**: `sensor.device_total_energy`
+- **Created**: `sensor.device_energy` (removes "Power" suffix to avoid "Power Energy")
 
-## Features
+## Manual Control
 
-- ✅ **Automatic Discovery**: Finds power entities without energy counterparts
-- ✅ **Flexible Integration**: Supports trapezoidal, left, and right integration methods
-- ✅ **Energy Dashboard Ready**: Creates sensors compatible with HA Energy Dashboard
-- ✅ **Manual Control**: Services for creating/removing sensors as needed
-- ✅ **Device Association**: Maintains device relationships for organization
-- ✅ **Configurable Precision**: Adjustable decimal places and units
+While the integration primarily works through automatic discovery, you can also manually create and manage energy sensors using services:
+
+### Create Energy Sensor
+**Service**: `powercalc_totals.create_energy_sensor`
+
+Manually create an energy sensor for any power entity, with full control over calculation parameters.
+
+**Parameters**:
+- **source_entity** (required): The power sensor entity ID to track
+- **integration_method** (optional): Calculation method - `trapezoidal` (default), `left`, or `right`
+- **round_digits** (optional): Decimal places for the result (default: 2)
+- **unit_prefix** (optional): `k` for kWh (default) or empty string for Wh
+- **max_sub_interval_minutes** (optional): Maximum time between measurements (default: 5 minutes)
+
+**Example**:
+```yaml
+service: powercalc_totals.create_energy_sensor
+data:
+  source_entity: sensor.custom_device_power
+  integration_method: trapezoidal
+  round_digits: 3
+  unit_prefix: k
+  max_sub_interval_minutes: 2
+```
+
+### Remove Energy Sensor  
+**Service**: `powercalc_totals.remove_energy_sensor`
+
+Remove an energy sensor created by this integration.
+
+**Parameters**:
+- **entity_id** (required): The energy sensor entity ID to remove
+
+**Example**:
+```yaml
+service: powercalc_totals.remove_energy_sensor
+data:
+  entity_id: sensor.custom_device_energy
+```
+
+**Use Cases for Manual Services**:
+- Create energy sensors with custom precision or calculation methods
+- Set up energy tracking for power entities that discovery missed
+- Remove unwanted energy sensors
+- Configure specific sub-interval timing for high-frequency monitoring
 
 ## Similar Projects
 
-This component is inspired by [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes), which performs similar device scanning and entity creation for battery-powered devices.
+This component is inspired by [PowerCalc](https://github.com/bramstroker/homeassistant-powercalc) and [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes), which perform similar device scanning and entity creation to augment existing devices with useful new entities.
 
 ## Contributing
 
