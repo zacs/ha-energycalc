@@ -3,7 +3,7 @@
   "name": "EnergyCalc",
   "codeowners": ["@zacs"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["integration"],
   "documentation": "https://github.com/zacs/energycalc",
   "integration_type": "device",
   "iot_class": "calculated",
