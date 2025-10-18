@@ -5,7 +5,9 @@
 [![License][license-shield]](LICENSE)
 [![hacs][hacsbadge]][hacs]
 
-A Home Assistant custom component that automatically discovers devices with power sensors (W) but missing total energy sensors (kWh) and offers to create energy tracking entities. This is useful for integrating power-only devices with Home Assistant's Energy Dashboard.
+<img src="icons/icon.png" width="400">
+
+EnergyCalc is a Home Assistant custom component that automatically discovers devices with power sensors (W) but missing total energy sensors (kWh) and offers to create energy tracking entities. This is useful for integrating power-only devices with Home Assistant's Energy Dashboard.
 
 ## Overview
 
@@ -16,7 +18,7 @@ Many devices provide real-time power consumption data but don't track total ener
 3. **Energy Dashboard Integration**: Generated sensors work seamlessly with Home Assistant's Energy Dashboard
 4. **Device Integration**: Created sensors are automatically "appended" to existing devices (eg. they will show up on the device page automatically)
 
-NOTE: The discovery happens at the device level, so if you have a device that has 5 power-monitored outlets, discovery will let you add the device as a whole (all 5 outlets), creating 5 new energy sensors linked to that device. 
+NOTE: The discovery happens at the device level, so if you have a device like a power strip that has 5 power-monitored outlets, discovery will let you add the device as a whole (all 5 outlets), creating 5 new energy sensors linked to that device. 
 
 ## Example Use Cases
 
@@ -27,7 +29,11 @@ NOTE: The discovery happens at the device level, so if you have a device that ha
 
 ## Installation
 
-### 1. Place Files
+### 1. Install component
+
+- Install the component via HACS (just search for "energycalc")
+
+Alternatively, you can manually install it:
 - Copy this folder to your Home Assistant `config/custom_components/` directory
 
 ### 2. Add to Configuration
