@@ -30,9 +30,19 @@ class PowerDeviceDiscovery:
         self.exclude_entities = exclude_entities or []
         self._discovered_entities: dict[str, dict[str, Any]] = {}
 
+    def _clear_caches(self) -> None:
+        """Clear internal caches for fresh discovery."""
+        if hasattr(self, '_device_entities_cache'):
+            delattr(self, '_device_entities_cache')
+        if hasattr(self, '_states_cache'):
+            delattr(self, '_states_cache')
+
     async def async_discover_and_create_sensors(self) -> None:
         """Discover power entities and create discovered integration entries."""
         _LOGGER.info("Starting power entity discovery...")
+        
+        # Clear any existing caches for fresh discovery
+        self._clear_caches()
         
         entity_registry = er.async_get(self.hass)
         device_registry = dr.async_get(self.hass)
@@ -83,21 +93,27 @@ class PowerDeviceDiscovery:
         disabled_count = 0
         no_state_count = 0
         
+        # Pre-convert exclude list to set for O(1) lookup
+        exclude_set = set(self.exclude_entities)
+        
+        # Get all states at once to reduce individual state lookups
+        all_states = self.hass.states.async_all()
+        state_dict = {state.entity_id: state for state in all_states}
+        
         for entity in registry.entities.values():
             if entity.domain == "sensor":
                 total_sensors += 1
                 
-            # Skip disabled entities
-            if entity.disabled:
-                disabled_count += 1
+            # Early checks that don't require state lookup
+            if (entity.domain != "sensor" or 
+                entity.disabled or 
+                entity.entity_id in exclude_set):
+                if entity.disabled:
+                    disabled_count += 1
                 continue
                 
-            # Skip entities that are in the exclude list
-            if entity.entity_id in self.exclude_entities:
-                continue
-                
-            # Get the entity state to check unit
-            state = self.hass.states.get(entity.entity_id)
+            # Get the entity state from our pre-loaded dict
+            state = state_dict.get(entity.entity_id)
             if not state:
                 no_state_count += 1
                 continue
@@ -106,11 +122,8 @@ class PowerDeviceDiscovery:
             unit = state.attributes.get("unit_of_measurement")
             device_class = state.attributes.get("device_class")
             
-            if (
-                entity.domain == "sensor" 
-                and unit in [POWER_WATT, UnitOfPower.WATT]
-                and (device_class == "power" or device_class is None)
-            ):
+            if (unit in [POWER_WATT, UnitOfPower.WATT] and 
+                (device_class == "power" or device_class is None)):
                 power_entities.append(entity)
         
         _LOGGER.info(
@@ -127,28 +140,36 @@ class PowerDeviceDiscovery:
             # No device associated, check by entity name pattern
             return self._has_energy_entity_by_name(power_entity, entity_registry)
             
-        # Get all entities for the same device
-        device_entities = er.async_entries_for_device(
-            entity_registry, power_entity.device_id
-        )
+        # Use cached device entities to avoid repeated registry lookups
+        device_id = power_entity.device_id
+        if not hasattr(self, '_device_entities_cache'):
+            self._device_entities_cache = {}
+            
+        if device_id not in self._device_entities_cache:
+            self._device_entities_cache[device_id] = er.async_entries_for_device(
+                entity_registry, device_id
+            )
+        
+        device_entities = self._device_entities_cache[device_id]
         
         for entity in device_entities:
-            if entity.disabled:
+            if entity.disabled or entity.domain != "sensor":
                 continue
                 
-            # Check if it's an energy sensor
-            state = self.hass.states.get(entity.entity_id)
+            # Use cached states for faster lookup
+            if not hasattr(self, '_states_cache'):
+                all_states = self.hass.states.async_all()
+                self._states_cache = {state.entity_id: state for state in all_states}
+                
+            state = self._states_cache.get(entity.entity_id)
             if not state:
                 continue
                 
             unit = state.attributes.get("unit_of_measurement")
             device_class = state.attributes.get("device_class")
             
-            if (
-                entity.domain == "sensor"
-                and unit in [ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR, UnitOfEnergy.KILO_WATT_HOUR, UnitOfEnergy.WATT_HOUR]
-                and (device_class == "energy" or device_class is None)
-            ):
+            if (unit in [ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR, UnitOfEnergy.KILO_WATT_HOUR, UnitOfEnergy.WATT_HOUR] and 
+                (device_class == "energy" or device_class is None)):
                 return True
                 
         return False
@@ -169,11 +190,16 @@ class PowerDeviceDiscovery:
             f"{power_name}_total_energy",
         ]
         
+        # Use cached states for faster lookup
+        if not hasattr(self, '_states_cache'):
+            all_states = self.hass.states.async_all()
+            self._states_cache = {state.entity_id: state for state in all_states}
+        
         for pattern in energy_patterns:
             energy_entity_id = f"sensor.{pattern}"
             if entity_registry.async_get(energy_entity_id):
-                # Check if it's actually an energy sensor
-                state = self.hass.states.get(energy_entity_id)
+                # Check if it's actually an energy sensor using cached state
+                state = self._states_cache.get(energy_entity_id)
                 if state:
                     unit = state.attributes.get("unit_of_measurement")
                     if unit in [ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR, UnitOfEnergy.KILO_WATT_HOUR, UnitOfEnergy.WATT_HOUR]:
