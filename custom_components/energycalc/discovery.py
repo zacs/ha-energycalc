@@ -53,8 +53,16 @@ class PowerDeviceDiscovery:
         
         # Filter entities that need energy sensors
         entities_needing_energy = []
+        _LOGGER.debug("Checking %d power entities for existing energy sensors...", len(power_entities))
+        
         for power_entity in power_entities:
-            if not self._has_energy_entity(power_entity, entity_registry):
+            _LOGGER.debug("Checking power entity: %s (device_id=%s)", 
+                         power_entity.entity_id, power_entity.device_id)
+            
+            has_energy = self._has_energy_entity(power_entity, entity_registry)
+            _LOGGER.debug("Power entity %s has_energy_entity=%s", power_entity.entity_id, has_energy)
+            
+            if not has_energy:
                 _LOGGER.info(
                     "Found power entity %s without corresponding energy entity",
                     power_entity.entity_id
@@ -87,6 +95,7 @@ class PowerDeviceDiscovery:
 
     def _get_power_entities(self) -> list[RegistryEntry]:
         """Get all entities that measure power in watts."""
+        _LOGGER.debug("Starting _get_power_entities scan...")
         registry = er.async_get(self.hass)
         power_entities = []
         total_sensors = 0
@@ -95,19 +104,21 @@ class PowerDeviceDiscovery:
         
         # Pre-convert exclude list to set for O(1) lookup
         exclude_set = set(self.exclude_entities)
+        _LOGGER.debug("Excluding %d entities: %s", len(exclude_set), list(exclude_set)[:5])
         
         # Get all states at once to reduce individual state lookups
         all_states = self.hass.states.async_all()
         state_dict = {state.entity_id: state for state in all_states}
+        _LOGGER.debug("Loaded %d total states", len(state_dict))
         
-        for entity in registry.entities.values():
-            if entity.domain == "sensor":
-                total_sensors += 1
+        sensor_entities = [e for e in registry.entities.values() if e.domain == "sensor"]
+        _LOGGER.debug("Found %d sensor entities in registry", len(sensor_entities))
+        
+        for entity in sensor_entities:
+            total_sensors += 1
                 
             # Early checks that don't require state lookup
-            if (entity.domain != "sensor" or 
-                entity.disabled or 
-                entity.entity_id in exclude_set):
+            if (entity.disabled or entity.entity_id in exclude_set):
                 if entity.disabled:
                     disabled_count += 1
                 continue
@@ -125,6 +136,8 @@ class PowerDeviceDiscovery:
             if (unit in [POWER_WATT, UnitOfPower.WATT] and 
                 (device_class == "power" or device_class is None)):
                 power_entities.append(entity)
+                _LOGGER.debug("Found power entity: %s (unit=%s, device_class=%s)", 
+                             entity.entity_id, unit, device_class)
         
         _LOGGER.info(
             "Scanned %d total sensors, %d disabled, %d no state, found %d power entities",
@@ -138,6 +151,7 @@ class PowerDeviceDiscovery:
         """Check if there's already an energy entity for this power entity's device."""
         if not power_entity.device_id:
             # No device associated, check by entity name pattern
+            _LOGGER.debug("No device_id for %s, checking by name pattern", power_entity.entity_id)
             return self._has_energy_entity_by_name(power_entity, entity_registry)
             
         # Use cached device entities to avoid repeated registry lookups
@@ -146,20 +160,21 @@ class PowerDeviceDiscovery:
             self._device_entities_cache = {}
             
         if device_id not in self._device_entities_cache:
-            self._device_entities_cache[device_id] = er.async_entries_for_device(
-                entity_registry, device_id
-            )
+            device_entities = er.async_entries_for_device(entity_registry, device_id)
+            self._device_entities_cache[device_id] = device_entities
+            _LOGGER.debug("Cached %d entities for device %s", len(device_entities), device_id)
         
         device_entities = self._device_entities_cache[device_id]
+        
+        # Use cached states for faster lookup
+        if not hasattr(self, '_states_cache'):
+            all_states = self.hass.states.async_all()
+            self._states_cache = {state.entity_id: state for state in all_states}
+            _LOGGER.debug("Created states cache with %d entries", len(self._states_cache))
         
         for entity in device_entities:
             if entity.disabled or entity.domain != "sensor":
                 continue
-                
-            # Use cached states for faster lookup
-            if not hasattr(self, '_states_cache'):
-                all_states = self.hass.states.async_all()
-                self._states_cache = {state.entity_id: state for state in all_states}
                 
             state = self._states_cache.get(entity.entity_id)
             if not state:
@@ -170,8 +185,10 @@ class PowerDeviceDiscovery:
             
             if (unit in [ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR, UnitOfEnergy.KILO_WATT_HOUR, UnitOfEnergy.WATT_HOUR] and 
                 (device_class == "energy" or device_class is None)):
+                _LOGGER.debug("Found existing energy entity %s for device %s", entity.entity_id, device_id)
                 return True
                 
+        _LOGGER.debug("No energy entity found for device %s", device_id)
         return False
 
     def _has_energy_entity_by_name(

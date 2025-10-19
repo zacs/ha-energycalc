@@ -59,9 +59,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             """Run discovery after startup."""
             import asyncio
             # Wait a bit to ensure all entities are loaded
+            _LOGGER.info("Starting initial discovery in 5 seconds...")
             await asyncio.sleep(5)
+            _LOGGER.info("Running initial discovery now...")
             discovery = PowerDeviceDiscovery(hass, exclude_entities=exclude_entities)
-            await discovery.async_discover_and_create_sensors()
+            try:
+                await discovery.async_discover_and_create_sensors()
+                _LOGGER.info("Initial discovery completed successfully")
+            except Exception as e:
+                _LOGGER.error("Initial discovery failed: %s", e, exc_info=True)
         
         hass.async_create_task(run_discovery())
         
@@ -70,7 +76,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             """Run periodic discovery for new devices."""
             _LOGGER.info("Running periodic device discovery...")
             discovery = PowerDeviceDiscovery(hass, exclude_entities=exclude_entities)
-            await discovery.async_discover_and_create_sensors()
+            try:
+                await discovery.async_discover_and_create_sensors()
+                _LOGGER.info("Periodic discovery completed successfully")
+            except Exception as e:
+                _LOGGER.error("Periodic discovery failed: %s", e, exc_info=True)
         
         # Schedule periodic discovery
         async_track_time_interval(hass, periodic_discovery, timedelta(hours=24))
