@@ -128,6 +128,21 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
         """Return the icon for the sensor."""
         return "mdi:lightning-bolt"
 
+    async def async_reset_integration(self) -> None:
+        """Reset the integration sensor to zero."""
+        try:
+            # Reset the internal state to zero
+            from decimal import Decimal
+            self._state = Decimal('0')
+            self._last_valid_state = Decimal('0')
+            
+            # Update the state in Home Assistant
+            self.async_write_ha_state()
+            _LOGGER.info(f"Successfully reset integration sensor {self.entity_id}")
+        except Exception as e:
+            _LOGGER.error(f"Error resetting integration sensor {self.entity_id}: {e}")
+            raise
+
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -181,6 +196,16 @@ async def async_setup_entry(
         
         _LOGGER.debug(f"Successfully created {len(energy_sensors)} energy sensors, adding to Home Assistant...")
         async_add_entities(energy_sensors, True)
+        
+        # Store entity references for the reset button to use
+        if DOMAIN not in hass.data:
+            hass.data[DOMAIN] = {}
+        if "energy_sensors" not in hass.data[DOMAIN]:
+            hass.data[DOMAIN]["energy_sensors"] = {}
+        
+        for sensor in energy_sensors:
+            hass.data[DOMAIN]["energy_sensors"][sensor.entity_id] = sensor
+        
         _LOGGER.info(f"Successfully added energy sensors for {len(power_entity_ids)} power entities: {power_entity_ids}")
         
     except Exception as e:

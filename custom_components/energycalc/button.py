@@ -24,26 +24,29 @@ async def async_setup_entry(
     """Set up button entities from a config entry."""
     _LOGGER.debug(f"Setting up button entities for config entry: {config_entry.entry_id}")
     
-    # Get the device associated with this config entry
+    # Get the device by looking at the energy sensors we've created
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     
-    # Find the device for this config entry
-    devices = dr.async_entries_for_config_entry(device_registry, config_entry.entry_id)
-    if not devices:
+    # Find energy sensors for this config entry to get device info
+    config_entry_entities = er.async_entries_for_config_entry(entity_registry, config_entry.entry_id)
+    device_info = None
+    device_id = None
+    
+    for entity_entry in config_entry_entities:
+        if entity_entry.entity_id.startswith("sensor.") and entity_entry.device_id:
+            device_id = entity_entry.device_id
+            device = device_registry.async_get(device_id)
+            if device:
+                device_info = DeviceInfo(
+                    identifiers=device.identifiers,
+                    connections=device.connections,
+                )
+                _LOGGER.debug(f"Found device for button via sensor: {device.name} ({device_id})")
+                break
+    
+    if not device_info:
         _LOGGER.debug("No device found for config entry, creating button without device association")
-        device_info = None
-        device_id = None
-    else:
-        device = devices[0]  # Take the first device
-        device_id = device.id
-        device_info = DeviceInfo(
-            identifiers=device.identifiers,
-            name=device.name,
-            model=device.model,
-            manufacturer=device.manufacturer,
-        )
-        _LOGGER.debug(f"Found device for config entry: {device.name} ({device_id})")
     
     # Create the reset button
     button = EnergyResetButton(
@@ -108,15 +111,24 @@ class EnergyResetButton(ButtonEntity):
                         _LOGGER.debug(f"Attempting to reset energy sensor: {entity_entry.entity_id}")
                         
                         try:
-                            # Call the integration.reset service for this specific entity
-                            await self.hass.services.async_call(
-                                "integration",
-                                "reset",
-                                {"entity_id": entity_entry.entity_id},
-                                blocking=True,
-                            )
-                            reset_count += 1
-                            _LOGGER.debug(f"Successfully reset {entity_entry.entity_id}")
+                            # Find the actual entity instance from our stored references
+                            energy_sensors = self.hass.data.get(DOMAIN, {}).get("energy_sensors", {})
+                            entity_obj = energy_sensors.get(entity_entry.entity_id)
+                            
+                            # If we found the entity, call our custom reset method
+                            if entity_obj and hasattr(entity_obj, 'async_reset_integration'):
+                                await entity_obj.async_reset_integration()
+                                reset_count += 1
+                                _LOGGER.debug(f"Successfully reset {entity_entry.entity_id} using custom method")
+                            else:
+                                # Fallback: directly set state to 0
+                                self.hass.states.async_set(
+                                    entity_entry.entity_id,
+                                    "0.0",
+                                    entity_state.attributes,
+                                )
+                                reset_count += 1
+                                _LOGGER.debug(f"Reset {entity_entry.entity_id} using state override (entity object not found)")
                             
                         except Exception as reset_error:
                             _LOGGER.warning(f"Failed to reset {entity_entry.entity_id}: {reset_error}")
