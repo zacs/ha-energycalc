@@ -47,7 +47,7 @@ You can prevent certain power entities from being discovered by listing them in 
 ```yaml
 energycalc:
   exclude_entities:
-    - sensor.zigbee_power_budget
+    - sensor.device1_power_budget
     - sensor.ups_power_static
     - sensor.server_power_baseline
 ```
@@ -86,7 +86,7 @@ Uses Home Assistant's built-in integration sensor with:
 
 Generated entities follow this pattern:
 - **Source**: `sensor.device_power`
-- **Created**: `sensor.device_energy` (removes "Power" suffix to avoid "Power Energy")
+- **Created**: `sensor.device_energy`
 
 ## Manual Control
 

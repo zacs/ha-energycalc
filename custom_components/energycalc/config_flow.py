@@ -76,7 +76,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
         # Set title placeholders for discovery UI like Battery Notes does
         entity_count = len(power_entity_ids)
-        display_text = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} outlets)"
+        display_text = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} power sensors)"
         self.context["title_placeholders"] = {
             "name": display_text,
             "manufacturer": discovery_info.get("manufacturer", ""),
@@ -99,7 +99,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if entity_count == 1:
                 title = f"{device_name} - Energy Sensor"
             else:
-                title = f"{device_name} - Energy Sensors ({entity_count} outlets)"
+                title = f"{device_name} - Energy Sensors ({entity_count} power sensors)"
             
             return self.async_create_entry(
                 title=title,
@@ -112,7 +112,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         primary_entity_id = power_entity_ids[0]
         
         entity_count = len(power_entity_ids)
-        display_name = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} outlets)"
+        display_name = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} power sensors)"
 
         return self.async_show_form(
             step_id="confirm",
