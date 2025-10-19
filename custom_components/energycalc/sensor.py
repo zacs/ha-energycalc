@@ -129,7 +129,7 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
         return "mdi:lightning-bolt"
 
     async def async_reset_integration(self) -> None:
-        """Reset the integration sensor to zero."""
+        """Reset the integration sensor to zero and purge its history."""
         try:
             # Reset the internal state to zero
             from decimal import Decimal
@@ -138,7 +138,24 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
             
             # Update the state in Home Assistant
             self.async_write_ha_state()
-            _LOGGER.info(f"Successfully reset integration sensor {self.entity_id}")
+            
+            # Purge all historical data for this entity from the recorder
+            try:
+                await self.hass.services.async_call(
+                    "recorder",
+                    "purge_entities",
+                    {
+                        "entity_id": [self.entity_id],
+                        "keep_days": 0,  # Remove all history
+                    },
+                    blocking=True,
+                )
+                _LOGGER.debug(f"Purged historical data for {self.entity_id}")
+            except Exception as purge_error:
+                _LOGGER.warning(f"Could not purge history for {self.entity_id}: {purge_error}")
+                # Don't fail the reset if history purge fails
+            
+            _LOGGER.info(f"Successfully reset integration sensor {self.entity_id} (state and history)")
         except Exception as e:
             _LOGGER.error(f"Error resetting integration sensor {self.entity_id}: {e}")
             raise
