@@ -23,7 +23,7 @@ from .discovery import PowerDeviceDiscovery
 from .services import async_setup_services
 
 # Constants for your integration
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BUTTON]
 
 # YAML configuration schema
 CONFIG_SCHEMA = vol.Schema(
