@@ -78,9 +78,52 @@ class EnergyResetButton(ButtonEntity):
         
         # Create unique ID for the button
         self._attr_unique_id = f"{config_entry.unique_id}_reset_button"
-        self._attr_name = "Reset Energy Sensors"
+        
+        # Determine button name based on device or source entity
+        button_name = self._determine_button_name()
+        self._attr_name = button_name
         self._attr_device_class = ButtonDeviceClass.RESTART
         self._attr_icon = "mdi:counter"
+
+    def _determine_button_name(self) -> str:
+        """Determine the button name based on device or source entity."""
+        # First try to use device name if we have device info
+        if self._device_id:
+            device_registry = dr.async_get(self.hass)
+            device = device_registry.async_get(self._device_id)
+            if device and device.name:
+                return f"Reset {device.name} Energy"
+        
+        # Fallback: try to get name from the first power entity in config entry
+        entity_registry = er.async_get(self.hass)
+        config_entry_entities = er.async_entries_for_config_entry(
+            entity_registry, self._config_entry.entry_id
+        )
+        
+        # Find the first sensor to get the source entity
+        for entity_entry in config_entry_entities:
+            if entity_entry.entity_id.startswith("sensor."):
+                entity_state = self.hass.states.get(entity_entry.entity_id)
+                if entity_state and entity_state.attributes.get('source_entity'):
+                    source_entity_id = entity_state.attributes['source_entity']
+                    
+                    # Get the source entity and create a clean name
+                    source_state = self.hass.states.get(source_entity_id)
+                    if source_state:
+                        source_name = source_state.attributes.get('friendly_name', source_entity_id)
+                        # Remove 'sensor.' prefix and clean up
+                        if source_name.startswith('sensor.'):
+                            source_name = source_name[7:]
+                        # Convert underscores to spaces and title case
+                        clean_name = source_name.replace('_', ' ').title()
+                        # Remove "Power" from the end if it exists
+                        if clean_name.endswith(' Power'):
+                            clean_name = clean_name[:-6]
+                        return f"Reset {clean_name} Energy"
+                break
+        
+        # Final fallback
+        return "Reset Energy Sensors"
 
     @property
     def device_info(self) -> DeviceInfo | None:
