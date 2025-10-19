@@ -60,7 +60,7 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
                 round_digits=3,
                 source_entity=power_entity_id,
                 unique_id=unique_id,
-                unit_prefix=None,
+                unit_prefix="k",
                 unit_time=UnitOfTime.HOURS,
                 max_sub_interval=max_sub_interval,
             )
