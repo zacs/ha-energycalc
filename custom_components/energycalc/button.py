@@ -8,7 +8,7 @@ from homeassistant.components.button import ButtonEntity, ButtonDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -84,6 +84,7 @@ class EnergyResetButton(ButtonEntity):
         self._attr_name = button_name
         self._attr_device_class = ButtonDeviceClass.RESTART
         self._attr_icon = "mdi:counter"
+        self._attr_entity_category = EntityCategory.CONFIG
 
     def _determine_button_name(self) -> str:
         """Determine the button name based on device or source entity."""
