@@ -3,11 +3,11 @@
   "name": "EnergyCalc",
   "codeowners": ["@zacs"],
   "config_flow": true,
-  "dependencies": ["integration"],
+  "dependencies": ["integration", "recorder"],
   "documentation": "https://github.com/zacs/ha-energycalc",
   "integration_type": "device",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/zacs/ha-energycalc/issues",
   "requirements": [],
-  "version": "1.0.0"
+  "version": "1.1.1"
 }
