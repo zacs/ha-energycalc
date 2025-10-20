@@ -131,6 +131,8 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
     async def async_reset_integration(self) -> None:
         """Reset the integration sensor to zero and purge its history."""
         try:
+            _LOGGER.info(f"Starting reset for {self.entity_id}")
+            
             # Reset the internal state to zero
             from decimal import Decimal
             self._state = Decimal('0')
@@ -138,24 +140,182 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
             
             # Update the state in Home Assistant
             self.async_write_ha_state()
+            _LOGGER.info(f"Reset state to 0 for {self.entity_id}")
             
-            # Purge all historical data for this entity from the recorder
+            # Check what recorder services are available
+            recorder_services = self.hass.services.async_services().get("recorder", {})
+            _LOGGER.info(f"Available recorder services: {list(recorder_services.keys())}")
+            
+            # Try to purge historical data for this entity from the recorder
+            history_cleared = False
+            
+            # Method 1: Clear entity states using purge_entities service
+            if "purge_entities" in recorder_services:
+                try:
+                    _LOGGER.info(f"Clearing entity states for {self.entity_id}")
+                    await self.hass.services.async_call(
+                        "recorder",
+                        "purge_entities",
+                        {
+                            "entity_id": self.entity_id,  # String format works
+                            "keep_days": 0,
+                        },
+                        blocking=True,
+                    )
+                    _LOGGER.info(f"Successfully cleared entity states for {self.entity_id}")
+                    history_cleared = True
+                except Exception as purge_error:
+                    _LOGGER.error(f"Failed to clear entity states for {self.entity_id}: {purge_error}")
+            
+            # Method 2: ALWAYS clear statistics (this is what graphs use)
+            # Do this regardless of whether purge_entities succeeded, since graphs use statistics
+            statistics_cleared = False
             try:
-                await self.hass.services.async_call(
-                    "recorder",
-                    "purge_entities",
-                    {
-                        "entity_id": [self.entity_id],
-                        "keep_days": 0,  # Remove all history
-                    },
-                    blocking=True,
-                )
-                _LOGGER.debug(f"Purged historical data for {self.entity_id}")
-            except Exception as purge_error:
-                _LOGGER.warning(f"Could not purge history for {self.entity_id}: {purge_error}")
-                # Don't fail the reset if history purge fails
+                _LOGGER.info(f"Clearing statistics for {self.entity_id} (graphs use statistics data)")
+                
+                # Try statistics clearing service first if available
+                if "clear_statistics" in recorder_services:
+                    await self.hass.services.async_call(
+                        "recorder",
+                        "clear_statistics",
+                        {"statistic_ids": [self.entity_id]},
+                        blocking=True,
+                    )
+                    _LOGGER.info(f"Cleared statistics via recorder service for {self.entity_id}")
+                    statistics_cleared = True
+                else:
+                    statistics_services = self.hass.services.async_services().get("statistics", {})
+                    if "clear_statistics" in statistics_services:
+                        await self.hass.services.async_call(
+                            "statistics",
+                            "clear_statistics",
+                            {"statistic_ids": [self.entity_id]},
+                            blocking=True,
+                        )
+                        _LOGGER.info(f"Cleared statistics via statistics service for {self.entity_id}")
+                        statistics_cleared = True
+                    else:
+                        _LOGGER.info("No statistics clearing service found - using direct database approach")
+                        
+                        # Try direct database manipulation to clear statistics
+                        try:
+                            from homeassistant.components.recorder import get_instance
+                            recorder_instance = get_instance(self.hass)
+                            
+                            if recorder_instance and recorder_instance.engine:
+                                _LOGGER.info(f"Attempting direct statistics database deletion for {self.entity_id}")
+                                
+                                def clear_statistics_db(entity_id):
+                                    """Clear statistics directly from database."""
+                                    from homeassistant.components.recorder.util import session_scope
+                                    import sqlalchemy as sa
+                                    
+                                    with session_scope(session=recorder_instance.get_session()) as session:
+                                        # Find the metadata_id for this entity in statistics_meta
+                                        metadata_result = session.execute(
+                                            sa.text("SELECT id FROM statistics_meta WHERE statistic_id = :entity_id"),
+                                            {"entity_id": entity_id}
+                                        ).fetchone()
+                                        
+                                        if metadata_result:
+                                            metadata_id = metadata_result[0]
+                                            _LOGGER.info(f"Found statistics metadata_id {metadata_id} for {entity_id}")
+                                            
+                                            # Delete from statistics table
+                                            stats_result = session.execute(
+                                                sa.text("DELETE FROM statistics WHERE metadata_id = :metadata_id"),
+                                                {"metadata_id": metadata_id}
+                                            )
+                                            
+                                            # Delete from statistics_short_term table
+                                            short_stats_result = session.execute(
+                                                sa.text("DELETE FROM statistics_short_term WHERE metadata_id = :metadata_id"),
+                                                {"metadata_id": metadata_id}
+                                            )
+                                            
+                                            session.commit()
+                                            
+                                            _LOGGER.info(f"Deleted {stats_result.rowcount} statistics and {short_stats_result.rowcount} short-term statistics for {entity_id}")
+                                            return True
+                                        else:
+                                            _LOGGER.info(f"No statistics metadata found for {entity_id}")
+                                            return False
+                                
+                                # Run the database operation in executor
+                                success = await recorder_instance.async_add_executor_job(
+                                    clear_statistics_db, self.entity_id
+                                )
+                                
+                                if success:
+                                    _LOGGER.info(f"Successfully cleared statistics via direct database access for {self.entity_id}")
+                                    statistics_cleared = True
+                                else:
+                                    _LOGGER.info(f"No statistics found to clear for {self.entity_id}")
+                            else:
+                                _LOGGER.warning("Recorder instance not available for direct database access")
+                                
+                        except ImportError as ie:
+                            _LOGGER.warning(f"Recorder database components not available: {ie}")
+                        except Exception as db_error:
+                            _LOGGER.error(f"Direct statistics database deletion failed: {db_error}")
+                        
+            except Exception as stats_error:
+                _LOGGER.error(f"Statistics clearing failed for {self.entity_id}: {stats_error}")
+                _LOGGER.warning("This is likely why historical data still appears in graphs")
+
             
-            _LOGGER.info(f"Successfully reset integration sensor {self.entity_id} (state and history)")
+            
+
+            
+            # Final step: Force frontend refresh and verify
+            if history_cleared or statistics_cleared:
+                try:
+                    # Force the entity to update its state to trigger frontend refresh
+                    self.async_write_ha_state()
+                    
+                    # Try to trigger a frontend reload for this entity
+                    await self.hass.services.async_call(
+                        "homeassistant",
+                        "update_entity",
+                        {"entity_id": self.entity_id},
+                        blocking=False,
+                    )
+                    
+                    # Also try to reload the lovelace dashboards to clear cached graphs
+                    try:
+                        await self.hass.services.async_call(
+                            "lovelace",
+                            "reload_resources",
+                            {},
+                            blocking=False,
+                        )
+                        _LOGGER.info(f"Triggered frontend resource reload")
+                    except:
+                        pass  # Not critical if this fails
+                    
+                    status_parts = []
+                    if history_cleared:
+                        status_parts.append("states cleared")
+                    if statistics_cleared:
+                        status_parts.append("statistics cleared")
+                    
+                    status = " and ".join(status_parts) if status_parts else "state reset"
+                    _LOGGER.info(f"Successfully reset integration sensor {self.entity_id} ({status}, frontend refreshed)")
+                    
+                except Exception as refresh_error:
+                    _LOGGER.warning(f"Reset completed but frontend refresh failed: {refresh_error}")
+                    status_parts = []
+                    if history_cleared:
+                        status_parts.append("states cleared")
+                    if statistics_cleared:
+                        status_parts.append("statistics cleared")
+                    status = " and ".join(status_parts) if status_parts else "state reset"
+                    _LOGGER.info(f"Successfully reset integration sensor {self.entity_id} ({status})")
+            else:
+                _LOGGER.warning(f"Successfully reset state for {self.entity_id} but could not clear history or statistics")
+                _LOGGER.warning("Historical data will still be visible in graphs until manually purged")
+                _LOGGER.info("Try refreshing your browser or waiting a few minutes for the UI to update")
+                
         except Exception as e:
             _LOGGER.error(f"Error resetting integration sensor {self.entity_id}: {e}")
             raise
