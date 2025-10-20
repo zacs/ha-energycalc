@@ -58,9 +58,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         async def run_discovery():
             """Run discovery after startup."""
             import asyncio
-            # Wait a bit to ensure all entities are loaded
-            _LOGGER.info("Starting initial discovery in 5 seconds...")
-            await asyncio.sleep(5)
+            # Wait longer to ensure all entities are loaded (especially on large systems)
+            _LOGGER.info("Starting initial discovery in 30 seconds...")
+            await asyncio.sleep(30)
             _LOGGER.info("Running initial discovery now...")
             discovery = PowerDeviceDiscovery(hass, exclude_entities=exclude_entities)
             try:
