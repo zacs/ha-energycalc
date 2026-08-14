@@ -2,222 +2,100 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
-from homeassistant.components.button import ButtonEntity, ButtonDeviceClass
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr, entity_registry as er
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.device import async_entity_id_to_device
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
+from .const import CONF_DEVICE_NAME
+from .helpers import reset_button_unique_id, source_entity_ids
+
+if TYPE_CHECKING:
+    from . import EnergyCalcConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    config_entry: EnergyCalcConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up button entities from a config entry."""
-    _LOGGER.debug(f"Setting up button entities for config entry: {config_entry.entry_id}")
-    
-    # Get the device by looking at the energy sensors we've created
-    device_registry = dr.async_get(hass)
-    entity_registry = er.async_get(hass)
-    
-    # Find energy sensors for this config entry to get device info
-    config_entry_entities = er.async_entries_for_config_entry(entity_registry, config_entry.entry_id)
-    device_info = None
-    device_id = None
-    
-    for entity_entry in config_entry_entities:
-        if entity_entry.entity_id.startswith("sensor.") and entity_entry.device_id:
-            device_id = entity_entry.device_id
-            device = device_registry.async_get(device_id)
-            if device:
-                device_info = DeviceInfo(
-                    identifiers=device.identifiers,
-                    connections=device.connections,
-                )
-                _LOGGER.debug(f"Found device for button via sensor: {device.name} ({device_id})")
-                break
-    
-    if not device_info:
-        _LOGGER.debug("No device found for config entry, creating button without device association")
-    
-    # Create the reset button
-    button = EnergyResetButton(
-        hass=hass,
-        config_entry=config_entry,
-        device_info=device_info,
-        device_id=device_id,
-    )
-    
-    async_add_entities([button])
-    _LOGGER.debug("Added energy reset button")
+    """Set up the reset button for a config entry."""
+    power_entity_ids = source_entity_ids(config_entry)
+    if not power_entity_ids:
+        return
+
+    async_add_entities([EnergyResetButton(hass, config_entry, power_entity_ids[0])])
 
 
 class EnergyResetButton(ButtonEntity):
-    """Button to reset all energy sensors for a device."""
+    """Button that resets every energy sensor of a config entry."""
+
+    _attr_device_class = ButtonDeviceClass.RESTART
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "reset_energy"
 
     def __init__(
         self,
         hass: HomeAssistant,
-        config_entry: ConfigEntry,
-        device_info: DeviceInfo | None,
-        device_id: str | None,
+        config_entry: EnergyCalcConfigEntry,
+        power_entity_id: str,
     ) -> None:
         """Initialize the reset button."""
-        self.hass = hass
         self._config_entry = config_entry
-        self._device_id = device_id
-        self._device_info = device_info
-        
-        # Create unique ID for the button
-        self._attr_unique_id = f"{config_entry.unique_id}_reset_button"
-        
-        # Determine button name based on device or source entity
-        button_name = self._determine_button_name()
-        self._attr_name = button_name
-        self._attr_device_class = ButtonDeviceClass.RESTART
-        self._attr_icon = "mdi:counter"
-        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_unique_id = reset_button_unique_id(config_entry)
 
-    def _determine_button_name(self) -> str:
-        """Determine the button name based on device or source entity."""
-        # First try to use device name if we have device info
-        if self._device_id:
-            device_registry = dr.async_get(self.hass)
-            device = device_registry.async_get(self._device_id)
-            if device and device.name:
-                return f"Reset {device.name} Energy"
-        
-        # Fallback: try to get name from the first power entity in config entry
-        entity_registry = er.async_get(self.hass)
-        config_entry_entities = er.async_entries_for_config_entry(
-            entity_registry, self._config_entry.entry_id
-        )
-        
-        # Find the first sensor to get the source entity
-        for entity_entry in config_entry_entities:
-            if entity_entry.entity_id.startswith("sensor."):
-                entity_state = self.hass.states.get(entity_entry.entity_id)
-                if entity_state and entity_state.attributes.get('source_entity'):
-                    source_entity_id = entity_state.attributes['source_entity']
-                    
-                    # Get the source entity and create a clean name
-                    source_state = self.hass.states.get(source_entity_id)
-                    if source_state:
-                        source_name = source_state.attributes.get('friendly_name', source_entity_id)
-                        # Remove 'sensor.' prefix and clean up
-                        if source_name.startswith('sensor.'):
-                            source_name = source_name[7:]
-                        # Convert underscores to spaces and title case
-                        clean_name = source_name.replace('_', ' ').title()
-                        # Remove "Power" from the end if it exists
-                        if clean_name.endswith(' Power'):
-                            clean_name = clean_name[:-6]
-                        return f"Reset {clean_name} Energy"
-                break
-        
-        # Final fallback
-        return "Reset Energy Sensors"
+        # Link to the source entity's device rather than describing it, so the
+        # EnergyCalc config entry is not added to that device.
+        device = async_entity_id_to_device(hass, power_entity_id)
+        self.device_entry = device
 
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device info."""
-        return self._device_info
+        if device is not None:
+            # The device already supplies the context, so "Fake PDU Reset
+            # energy" reads better than "Reset Fake PDU energy".
+            self._attr_has_entity_name = True
+        else:
+            self._attr_name = self._standalone_name(config_entry, power_entity_id)
+
+    @staticmethod
+    def _standalone_name(
+        config_entry: EnergyCalcConfigEntry, power_entity_id: str
+    ) -> str:
+        """Build a name for a button that is not attached to a device."""
+        name = config_entry.data.get(CONF_DEVICE_NAME) or power_entity_id.removeprefix(
+            "sensor."
+        ).replace("_", " ").title()
+        if name.lower().endswith(" power"):
+            name = name[: -len(" power")]
+        return f"Reset {name} energy"
 
     async def async_press(self) -> None:
-        """Handle the button press to reset energy sensors."""
-        _LOGGER.info("Energy reset button pressed for config entry: %s", self._config_entry.entry_id)
-        
-        try:
-            # Get all energy sensors associated with this config entry
-            entity_registry = er.async_get(self.hass)
-            config_entry_entities = er.async_entries_for_config_entry(
-                entity_registry, self._config_entry.entry_id
+        """Reset every energy sensor belonging to this config entry."""
+        energy_sensors = list(self._config_entry.runtime_data.energy_sensors.values())
+
+        if not energy_sensors:
+            raise HomeAssistantError(
+                f"No EnergyCalc energy sensors to reset for {self._config_entry.title}"
             )
-            
-            reset_count = 0
-            failed_resets = []
-            
-            for entity_entry in config_entry_entities:
-                # Only reset sensor entities (not the button itself)
-                if (entity_entry.entity_id.startswith("sensor.") and 
-                    entity_entry.entity_id != self.entity_id):
-                    
-                    entity_state = self.hass.states.get(entity_entry.entity_id)
-                    if entity_state and entity_state.attributes.get('source_entity'):
-                        _LOGGER.debug(f"Attempting to reset energy sensor: {entity_entry.entity_id}")
-                        
-                        try:
-                            # Find the actual entity instance from our stored references
-                            energy_sensors = self.hass.data.get(DOMAIN, {}).get("energy_sensors", {})
-                            entity_obj = energy_sensors.get(entity_entry.entity_id)
-                            
-                            # If we found the entity, call our custom reset method
-                            if entity_obj and hasattr(entity_obj, 'async_reset_integration'):
-                                await entity_obj.async_reset_integration()
-                                reset_count += 1
-                                _LOGGER.debug(f"Successfully reset {entity_entry.entity_id} using custom method")
-                            else:
-                                # Fallback: directly set state to 0
-                                self.hass.states.async_set(
-                                    entity_entry.entity_id,
-                                    "0.0",
-                                    entity_state.attributes,
-                                )
-                                reset_count += 1
-                                _LOGGER.debug(f"Reset {entity_entry.entity_id} using state override (entity object not found)")
-                            
-                        except Exception as reset_error:
-                            _LOGGER.warning(f"Failed to reset {entity_entry.entity_id}: {reset_error}")
-                            failed_resets.append(entity_entry.entity_id)
-            
-            # Create appropriate notification based on results
-            if reset_count > 0:
-                message = f"Successfully reset {reset_count} energy sensor{'s' if reset_count != 1 else ''}"
-                if failed_resets:
-                    message += f". Failed to reset {len(failed_resets)} sensor{'s' if len(failed_resets) != 1 else ''}"
-                
-                _LOGGER.info(message)
-                await self.hass.services.async_call(
-                    "persistent_notification",
-                    "create",
-                    {
-                        "title": "EnergyCalc Reset Complete",
-                        "message": message,
-                        "notification_id": f"energycalc_reset_{self._config_entry.entry_id}",
-                    },
-                )
-            else:
-                message = "No energy sensors found to reset"
-                if failed_resets:
-                    message = f"Failed to reset all {len(failed_resets)} energy sensors"
-                
-                _LOGGER.warning(message)
-                await self.hass.services.async_call(
-                    "persistent_notification",
-                    "create",
-                    {
-                        "title": "EnergyCalc Reset",
-                        "message": message,
-                        "notification_id": f"energycalc_reset_{self._config_entry.entry_id}",
-                    },
-                )
-                
-        except Exception as e:
-            _LOGGER.error(f"Error in reset button handler: {e}")
-            await self.hass.services.async_call(
-                "persistent_notification",
-                "create",
-                {
-                    "title": "EnergyCalc Reset Error",
-                    "message": f"Error resetting energy sensors: {str(e)}",
-                    "notification_id": f"energycalc_reset_error_{self._config_entry.entry_id}",
-                },
-            )
+
+        failed: list[str] = []
+        for sensor in energy_sensors:
+            try:
+                await sensor.async_reset_integration()
+            except Exception:  # noqa: BLE001 - one failure must not stop the rest
+                _LOGGER.exception("Failed to reset %s", sensor.entity_id)
+                failed.append(sensor.entity_id)
+
+        if failed:
+            raise HomeAssistantError(f"Failed to reset {', '.join(failed)}")
+
+        _LOGGER.debug(
+            "Reset %d energy sensor(s) for %s",
+            len(energy_sensors),
+            self._config_entry.title,
+        )
