@@ -1,4 +1,4 @@
-"""Config flow for EnergyCalc integration."""
+"""Config flow for the EnergyCalc integration."""
 from __future__ import annotations
 
 import logging
@@ -7,160 +7,230 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.const import CONF_NAME
-from homeassistant.core import callback
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import selector
 from homeassistant.helpers.typing import DiscoveryInfoType
 
-from .const import DOMAIN
+from .const import (
+    CONFIG_MINOR_VERSION,
+    CONFIG_VERSION,
+    CONF_DEVICE_NAME,
+    CONF_INTEGRATION_METHOD,
+    CONF_MAX_SUB_INTERVAL_MINUTES,
+    CONF_POWER_ENTITY_ID,
+    CONF_POWER_ENTITY_IDS,
+    CONF_ROUND_DIGITS,
+    CONF_UNIT_PREFIX,
+    DEFAULT_INTEGRATION_METHOD,
+    DEFAULT_MAX_SUB_INTERVAL_MINUTES,
+    DEFAULT_ROUND_DIGITS,
+    DEFAULT_UNIT_PREFIX,
+    DOMAIN,
+    INTEGRATION_METHODS,
+    POWER_WATT,
+)
+from .helpers import source_entity_ids
 
 _LOGGER = logging.getLogger(__name__)
 
-# Ensure the ConfigFlow is exported
 __all__ = ["ConfigFlow"]
+
+# A select option cannot have an empty value, so map the "no prefix" choice
+# onto the prefix the integration sensor actually expects.
+UNIT_PREFIX_NONE = "none"
+UNIT_PREFIXES: dict[str, str | None] = {"k": "k", UNIT_PREFIX_NONE: None}
+
+USER_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_POWER_ENTITY_ID): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="sensor")
+        ),
+        vol.Required(
+            CONF_INTEGRATION_METHOD, default=DEFAULT_INTEGRATION_METHOD
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=INTEGRATION_METHODS,
+                translation_key="integration_method",
+            )
+        ),
+        vol.Required(
+            CONF_UNIT_PREFIX, default=DEFAULT_UNIT_PREFIX
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=list(UNIT_PREFIXES),
+                translation_key="unit_prefix",
+            )
+        ),
+        vol.Required(
+            CONF_ROUND_DIGITS, default=DEFAULT_ROUND_DIGITS
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0, max=10, mode=selector.NumberSelectorMode.BOX
+            )
+        ),
+        vol.Required(
+            CONF_MAX_SUB_INTERVAL_MINUTES, default=DEFAULT_MAX_SUB_INTERVAL_MINUTES
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1,
+                max=60,
+                mode=selector.NumberSelectorMode.BOX,
+                unit_of_measurement="min",
+            )
+        ),
+    }
+)
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for EnergyCalc."""
 
-    VERSION = 1
-    
+    VERSION = CONFIG_VERSION
+    MINOR_VERSION = CONFIG_MINOR_VERSION
+
     def __init__(self) -> None:
         """Initialize the config flow."""
         self.data: dict[str, Any] = {}
-        self._discovery_info: dict[str, Any] = {}
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Create an energy sensor for a power sensor picked by the user."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            power_entity_id = user_input[CONF_POWER_ENTITY_ID]
+
+            if (error := self._validate_source(power_entity_id)) is not None:
+                errors[CONF_POWER_ENTITY_ID] = error
+            else:
+                await self.async_set_unique_id(f"energycalc_{power_entity_id}")
+                self._abort_if_unique_id_configured()
+
+                return self._create_entry(
+                    {
+                        CONF_POWER_ENTITY_IDS: [power_entity_id],
+                        CONF_DEVICE_NAME: source_name(self.hass, power_entity_id),
+                        CONF_INTEGRATION_METHOD: user_input[CONF_INTEGRATION_METHOD],
+                        CONF_ROUND_DIGITS: int(user_input[CONF_ROUND_DIGITS]),
+                        CONF_UNIT_PREFIX: UNIT_PREFIXES[user_input[CONF_UNIT_PREFIX]],
+                        CONF_MAX_SUB_INTERVAL_MINUTES: int(
+                            user_input[CONF_MAX_SUB_INTERVAL_MINUTES]
+                        ),
+                    }
+                )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(
+                USER_SCHEMA, user_input or {}
+            ),
+            errors=errors,
+        )
 
     async def async_step_integration_discovery(
         self, discovery_info: DiscoveryInfoType
     ) -> ConfigFlowResult:
-        """Handle integration discovery."""
-        _LOGGER.debug(f"Starting integration discovery flow with info: {discovery_info}")
-        
-        # Handle both old (single entity) and new (multiple entities) discovery formats
-        if "power_entity_ids" in discovery_info:
-            # New multi-entity format
-            power_entity_ids = discovery_info["power_entity_ids"]
+        """Handle a device discovered by EnergyCalc."""
+        _LOGGER.debug("Starting discovery flow: %s", discovery_info)
+
+        if power_entity_ids := discovery_info.get(CONF_POWER_ENTITY_IDS):
             unique_id = discovery_info["unique_id"]
-            primary_entity_id = power_entity_ids[0]  # Use first entity for display
         else:
-            # Legacy single entity format (for backward compatibility)
-            power_entity_ids = [discovery_info["power_entity_id"]]
-            primary_entity_id = discovery_info["power_entity_id"]
-            unique_id = f"energycalc_{primary_entity_id}"
-        
+            # Entries discovered by older versions carried a single entity.
+            power_entity_ids = [discovery_info[CONF_POWER_ENTITY_ID]]
+            unique_id = f"energycalc_{power_entity_ids[0]}"
+
         await self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
-        
-        # Use device name from discovery data if available, following Battery Notes pattern
-        device_name = discovery_info.get("device_name")
-        if not device_name:
-            # Fallback to extracting from entity ID
-            try:
-                device_name = self._extract_device_name(primary_entity_id)
-                _LOGGER.debug(f"Extracted device name: '{device_name}' from entity: {primary_entity_id}")
-            except Exception as e:
-                _LOGGER.warning(f"Could not extract device name for {primary_entity_id}: {e}")
-                device_name = primary_entity_id.replace("sensor.", "").replace("_", " ").title()
-        else:
-            _LOGGER.debug(f"Using device name from discovery: '{device_name}' for entities: {power_entity_ids}")
-        
-        # Store discovery info for confirmation step
-        self._discovery_info = discovery_info
+
+        device_name = discovery_info.get(CONF_DEVICE_NAME) or fallback_name(
+            power_entity_ids[0]
+        )
+
         self.data = {
-            "power_entity_ids": power_entity_ids,  # Store all entities
-            "device_name": device_name,
-            # Don't store device_id to avoid config entry being associated with the device
-            "manufacturer": discovery_info.get("manufacturer"),
-            "model": discovery_info.get("model"),
+            CONF_POWER_ENTITY_IDS: power_entity_ids,
+            CONF_DEVICE_NAME: device_name,
         }
-        
-        # Set title placeholders for discovery UI like Battery Notes does
-        entity_count = len(power_entity_ids)
-        display_text = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} power sensors)"
+
         self.context["title_placeholders"] = {
-            "name": display_text,
-            "manufacturer": discovery_info.get("manufacturer", ""),
-            "model": discovery_info.get("model", ""),
+            "name": _display_name(device_name, len(power_entity_ids)),
         }
-        
+
         return await self.async_step_confirm()
 
     async def async_step_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Confirm the setup."""
+        """Ask the user to confirm a discovered device."""
         if user_input is not None:
-            # Handle both single and multiple entity formats
-            power_entity_ids = self.data.get("power_entity_ids", [self.data.get("power_entity_id")])
-            device_name = self.data.get("device_name", "Unknown Device")
-            
-            # Create a descriptive title
-            entity_count = len(power_entity_ids)
-            if entity_count == 1:
-                title = f"{device_name} - Energy Sensor"
-            else:
-                title = f"{device_name} - Energy Sensors ({entity_count} power sensors)"
-            
-            return self.async_create_entry(
-                title=title,
-                data=self.data,
-            )
-
-        # Handle both single and multiple entity formats for display
-        power_entity_ids = self.data.get("power_entity_ids", [self.data.get("power_entity_id")])
-        device_name = self.data.get("device_name", "Unknown Device")
-        primary_entity_id = power_entity_ids[0]
-        
-        entity_count = len(power_entity_ids)
-        display_name = f"{device_name}" if entity_count == 1 else f"{device_name} ({entity_count} power sensors)"
+            return self._create_entry(self.data)
 
         return self.async_show_form(
             step_id="confirm",
             description_placeholders={
-                "name": display_name,
+                "name": _display_name(
+                    self.data[CONF_DEVICE_NAME],
+                    len(self.data[CONF_POWER_ENTITY_IDS]),
+                ),
             },
         )
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Handle a flow initialized by the user."""
-        # Don't allow manual setup - this integration is YAML configuration only
-        return self.async_abort(reason="not_supported")
+    async def async_step_import(self, import_data: dict[str, Any]) -> ConfigFlowResult:
+        """Create an entry for the ``create_energy_sensor`` action."""
+        power_entity_ids = import_data[CONF_POWER_ENTITY_IDS]
 
-    def _extract_device_name(self, entity_id: str) -> str:
-        """Extract a human-readable device name from entity ID."""
-        # For now, just do simple string manipulation to avoid async issues
-        # We can enhance this later if needed
-        name = entity_id.replace("sensor.", "").replace("_", " ").title()
-        return name if name else "Unknown Device"
+        await self.async_set_unique_id(f"energycalc_{power_entity_ids[0]}")
+        self._abort_if_unique_id_configured()
 
-    @staticmethod
-    @callback
-    def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
-    ) -> config_entries.OptionsFlow:
-        """Get the options flow for this handler."""
-        return OptionsFlowHandler(config_entry)
-
-
-class OptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle options flow for EnergyCalc."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Manage the options."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema({
-                # Add options here if needed later
-            }),
+        device_name = import_data.get(CONF_DEVICE_NAME) or source_name(
+            self.hass, power_entity_ids[0]
         )
+        return self._create_entry({**import_data, CONF_DEVICE_NAME: device_name})
+
+    def _validate_source(self, power_entity_id: str) -> str | None:
+        """Return an error key if the chosen entity cannot be integrated."""
+        if (state := self.hass.states.get(power_entity_id)) is None:
+            return "unknown_entity"
+
+        if state.attributes.get("unit_of_measurement") != POWER_WATT:
+            return "not_a_power_sensor"
+
+        if any(
+            power_entity_id in source_entity_ids(entry)
+            for entry in self.hass.config_entries.async_entries(DOMAIN)
+        ):
+            return "already_tracked"
+
+        return None
+
+    def _create_entry(self, data: dict[str, Any]) -> ConfigFlowResult:
+        """Create the config entry for a set of power entities."""
+        device_name = data[CONF_DEVICE_NAME]
+        entity_count = len(data[CONF_POWER_ENTITY_IDS])
+        title = (
+            f"{device_name} - Energy Sensor"
+            if entity_count == 1
+            else f"{device_name} - Energy Sensors ({entity_count} power sensors)"
+        )
+        return self.async_create_entry(title=title, data=data)
+
+
+def fallback_name(power_entity_id: str) -> str:
+    """Derive a name from an entity ID when nothing better is available."""
+    return power_entity_id.removeprefix("sensor.").replace("_", " ").title()
+
+
+def source_name(hass: HomeAssistant, power_entity_id: str) -> str:
+    """Return the friendly name of a power entity."""
+    state = hass.states.get(power_entity_id)
+    if state is not None and (friendly_name := state.attributes.get("friendly_name")):
+        return str(friendly_name)
+    return fallback_name(power_entity_id)
+
+
+def _display_name(device_name: str, entity_count: int) -> str:
+    """Describe a device and how many power sensors it exposes."""
+    if entity_count == 1:
+        return device_name
+    return f"{device_name} ({entity_count} power sensors)"

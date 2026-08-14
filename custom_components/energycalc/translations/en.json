@@ -1,29 +1,98 @@
 {
   "config": {
+    "flow_title": "EnergyCalc: {name}",
     "step": {
-      "user": {
-        "title": "EnergyCalc",
-        "description": "EnergyCalc will automatically discover devices with power sensors that need energy sensors and create discovered integrations for each one.",
-        "data": {}
-      },
-      "integration_discovery": {
-        "title": "EnergyCalc: {name}",
-        "description": "Do you want to add energy sensors for **{name}**? This will create energy tracking for all power outlets on this device."
-      },
       "confirm": {
         "title": "EnergyCalc: {name}",
-        "description": "This will create energy sensors for all power outlets on **{name}**."
+        "description": "Create energy (kWh) sensors for the power sensors on **{name}**?\n\nThe new sensors are shown on the existing device page and can be used on the Energy Dashboard."
+      },
+      "user": {
+        "title": "Add an energy sensor",
+        "description": "Pick a power sensor (W) and EnergyCalc will create an energy sensor (kWh) that integrates it over time. The new sensor is shown on the power sensor's device and can be used on the Energy Dashboard.",
+        "data": {
+          "power_entity_id": "Power sensor",
+          "integration_method": "Integration method",
+          "unit_prefix": "Unit",
+          "round_digits": "Precision",
+          "max_sub_interval_minutes": "Max sub-interval"
+        },
+        "data_description": {
+          "power_entity_id": "The power sensor to integrate. It must report watts.",
+          "integration_method": "The Riemann sum method used to approximate the integral.",
+          "unit_prefix": "The unit of the energy sensor.",
+          "round_digits": "Number of decimal places to round the result to.",
+          "max_sub_interval_minutes": "How long to wait for a source update before integrating the last known value again."
+        }
       }
     },
-    "error": {
-      "cannot_connect": "Failed to connect",
-      "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
-    },
     "abort": {
-      "already_configured": "Energy sensor is already configured for this power entity",
-      "not_supported": "Manual configuration is not supported. Add 'energycalc:' to your configuration.yaml to enable automatic device discovery.",
-      "single_instance_allowed": "EnergyCalc is already configured. Discovery runs automatically."
+      "already_configured": "Energy sensors are already configured for this power sensor",
+      "not_supported": "EnergyCalc cannot be added manually. Add 'energycalc:' to your configuration.yaml to enable automatic discovery, or call the energycalc.create_energy_sensor action."
+    },
+    "error": {
+      "unknown_entity": "That entity does not exist.",
+      "not_a_power_sensor": "That entity does not report power in watts.",
+      "already_tracked": "EnergyCalc already tracks that power sensor."
+    }
+  },
+  "entity": {
+    "button": {
+      "reset_energy": {
+        "name": "Reset energy"
+      }
+    }
+  },
+  "selector": {
+    "integration_method": {
+      "options": {
+        "trapezoidal": "Trapezoidal rule",
+        "left": "Left Riemann sum",
+        "right": "Right Riemann sum"
+      }
+    },
+    "unit_prefix": {
+      "options": {
+        "k": "Kilowatt-hours (kWh)",
+        "none": "Watt-hours (Wh)"
+      }
+    }
+  },
+  "services": {
+    "create_energy_sensor": {
+      "name": "Create energy sensor",
+      "description": "Creates an energy (kWh) sensor that integrates a power (W) sensor over time.",
+      "fields": {
+        "source_entity": {
+          "name": "Source entity",
+          "description": "The power sensor to integrate."
+        },
+        "integration_method": {
+          "name": "Integration method",
+          "description": "The Riemann sum method used to approximate the integral."
+        },
+        "round_digits": {
+          "name": "Precision",
+          "description": "Number of decimal places to round the result to."
+        },
+        "unit_prefix": {
+          "name": "Metric prefix",
+          "description": "Metric prefix for the sensor unit. 'k' produces kWh, none produces Wh."
+        },
+        "max_sub_interval_minutes": {
+          "name": "Max sub-interval",
+          "description": "How long the integration waits for a source update before integrating the last known value again."
+        }
+      }
+    },
+    "remove_energy_sensor": {
+      "name": "Remove energy sensor",
+      "description": "Removes an energy sensor created by EnergyCalc.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "The EnergyCalc energy sensor to remove."
+        }
+      }
     }
   },
   "title": "EnergyCalc"

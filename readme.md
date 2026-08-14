@@ -16,9 +16,13 @@ Many devices provide real-time power consumption data but don't track total ener
 1. **Automatic Discovery**: Scans your Home Assistant instance for power entities (watts) that don't have corresponding energy entities (kWh)
 2. **Energy Calculation**: Creates integration sensors that calculate total energy consumption using trapezoidal integration
 3. **Energy Dashboard Integration**: Generated sensors work seamlessly with Home Assistant's Energy Dashboard
-4. **Device Integration**: Created sensors are automatically "appended" to existing devices (eg. they will show up on the device page automatically)
+4. **Device Integration**: Created sensors are linked to the existing device, so they show up on that device's page automatically
 
-NOTE: The discovery happens at the device level, so if you have a device like a power strip that has 5 power-monitored outlets, discovery will let you add the device as a whole (all 5 outlets), creating 5 new energy sensors linked to that device. 
+NOTE: The discovery happens at the device level, so if you have a device like a power strip that has 5 power-monitored outlets, discovery will let you add the device as a whole (all 5 outlets), creating 5 new energy sensors linked to that device.
+
+## Requirements
+
+Home Assistant **2026.8.0** or newer.
 
 ## Example Use Cases
 
@@ -76,6 +80,9 @@ The component analyzes your entity registry to find:
 
 Note: The component will attempt to find devices first, but will also look for power entities that don't have a similarly-named corresponding energy entity. Please file bugs if you notice any weirdness with the entity-based discovery. 
 
+Energy sensors that EnergyCalc created itself are ignored during this check, so
+a device where only some outlets are covered stays discoverable for the rest.
+
 ### Energy Calculation
 
 Uses Home Assistant's built-in integration sensor with:
@@ -88,9 +95,41 @@ Generated entities follow this pattern:
 - **Source**: `sensor.device_power`
 - **Created**: `sensor.device_energy`
 
+### Device Linking
+
+EnergyCalc entities are attached to the device that owns the source power
+sensor, so they appear on that device's page alongside the original entities.
+
+EnergyCalc itself is not listed as an integration on the device page, and it
+never takes ownership of a device it did not create. This follows Home
+Assistant's [pattern for helpers linking to devices][helper-device-pattern],
+which became mandatory in 2026.8. To reconfigure or delete the energy sensors,
+use the EnergyCalc entry on the Integrations page.
+
+If a power sensor is renamed or moved to a different device, EnergyCalc follows
+it: the energy sensor keeps its history and moves to the new device.
+
+### Resetting
+
+Each EnergyCalc entry adds a **Reset energy** button. Pressing it zeroes the
+energy sensors of that entry and purges their recorded history, including the
+long term statistics that back the Energy Dashboard.
+
 ## Manual Control
 
-While the integration primarily works through automatic discovery, you can also manually create and manage energy sensors using services:
+Discovery only *suggests* devices, so you can also add power sensors yourself.
+
+### Add from the UI
+
+Go to **Settings → Devices & Services → Add Integration → EnergyCalc** and pick
+one or more power sensors. The same form lets you choose the integration method,
+the unit, the precision and the maximum sub-interval. This is the easiest way to
+add a sensor that discovery skipped, for example one on a device that already
+reports energy for a different circuit.
+
+### Services
+
+You can also manage energy sensors from scripts and automations:
 
 ### Create Energy Sensor
 **Service**: `energycalc.create_energy_sensor`
@@ -100,13 +139,13 @@ Manually create an energy sensor for any power entity, with full control over ca
 **Parameters**:
 - **source_entity** (required): The power sensor entity ID to track
 - **integration_method** (optional): Calculation method - `trapezoidal` (default), `left`, or `right`
-- **round_digits** (optional): Decimal places for the result (default: 2)
+- **round_digits** (optional): Decimal places for the result (default: 3)
 - **unit_prefix** (optional): `k` for kWh (default) or empty string for Wh
-- **max_sub_interval_minutes** (optional): Maximum time between measurements (default: 5 minutes)
+- **max_sub_interval_minutes** (optional): Maximum time between measurements (default: 1 minute)
 
 **Example**:
 ```yaml
-service: energycalc.create_energy_sensor
+action: energycalc.create_energy_sensor
 data:
   source_entity: sensor.custom_device_power
   integration_method: trapezoidal
@@ -125,7 +164,7 @@ Remove an energy sensor created by this integration.
 
 **Example**:
 ```yaml
-service: energycalc.remove_energy_sensor
+action: energycalc.remove_energy_sensor
 data:
   entity_id: sensor.custom_device_energy
 ```
@@ -144,6 +183,14 @@ This component is inspired by [PowerCalc](https://github.com/bramstroker/homeass
 
 Issues and pull requests are welcome! Please check the existing issues before creating new ones.
 
+### Running the tests
+
+```bash
+python3 -m venv venv
+venv/bin/pip install -r requirements_test.txt
+venv/bin/python -m pytest
+```
+
 ## License
 
 This project is licensed under the MIT License.
@@ -151,6 +198,7 @@ This project is licensed under the MIT License.
 ---
 
 [energycalc]: https://github.com/zacs/ha-energycalc
+[helper-device-pattern]: https://developers.home-assistant.io/blog/2025/07/18/updated-pattern-for-helpers-linking-to-devices/
 [commits-shield]: https://img.shields.io/github/commit-activity/y/zacs/ha-energycalc.svg?style=for-the-badge
 [commits]: https://github.com/zacs/ha-energycalc/commits/main
 [hacs]: https://github.com/hacs/integration
