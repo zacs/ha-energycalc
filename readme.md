@@ -46,6 +46,10 @@ Alternatively, you can manually install it:
 energycalc:
 ```
 
+This enables automatic discovery. It is optional: without it, EnergyCalc still
+works through **Add Integration** and through the services below, it simply
+never goes looking for power sensors on its own.
+
 #### Optional: Exclude Specific Entities
 You can prevent certain power entities from being discovered by listing them in the `exclude_entities` configuration:
 ```yaml
@@ -70,30 +74,41 @@ After setup, the component will:
 - Allow you to confirm and create energy sensors for each discovered power entity
 - Continue discovering new power sensors automatically (real-time + every 24 hours)
 
+The first scan runs once Home Assistant has finished starting, so give it a
+moment after a restart before expecting discovery notifications.
+
 ## How It Works
 
 ### Discovery Process
 
 The component analyzes your entity registry to find:
-- **Power Entities**: Sensors with `W` or `watt` units (device class is optional)
-- **Missing Energy Entities**: Checks if corresponding energy sensors already exist
+- **Power Entities**: Sensors reporting `W`, whose device class is `power` or unset
+- **Missing Energy Entities**: Devices with no sensor reporting `Wh` or `kWh`
 
 Note: The component will attempt to find devices first, but will also look for power entities that don't have a similarly-named corresponding energy entity. Please file bugs if you notice any weirdness with the entity-based discovery. 
 
-Energy sensors that EnergyCalc created itself are ignored during this check, so
-a device where only some outlets are covered stays discoverable for the rest.
+Power sensors already tracked by EnergyCalc are skipped, and energy sensors that
+EnergyCalc created itself don't count as a device's energy sensor, so a device
+where only some outlets are covered stays discoverable for the rest.
 
 ### Energy Calculation
 
 Uses Home Assistant's built-in integration sensor with:
-- **Trapezoidal Integration**: Fixed method for accurate energy calculation
+- **Trapezoidal Integration**: The default method; `left` and `right` Riemann sums are also available
 - **Automatic Unit Conversion**: Converts watts to kilowatt-hours for Energy Dashboard compatibility
+
+Discovered sensors always use the defaults. To pick a different method, unit or
+precision, add the sensor from the UI or with the service below.
 
 ### Entity Naming
 
-Generated entities follow this pattern:
-- **Source**: `sensor.device_power`
-- **Created**: `sensor.device_energy`
+Energy sensors are named after the source sensor, with a trailing "Power"
+replaced by "Energy":
+
+- **Source**: `sensor.office_pdu_outlet_1_power` ("Office PDU Outlet 1 Power")
+- **Created**: `sensor.office_pdu_outlet_1_energy` ("Office PDU Outlet 1 Energy")
+
+Each entry also gets a single **Reset energy** button.
 
 ### Device Linking
 
@@ -103,8 +118,10 @@ sensor, so they appear on that device's page alongside the original entities.
 EnergyCalc itself is not listed as an integration on the device page, and it
 never takes ownership of a device it did not create. This follows Home
 Assistant's [pattern for helpers linking to devices][helper-device-pattern],
-which became mandatory in 2026.8. To reconfigure or delete the energy sensors,
-use the EnergyCalc entry on the Integrations page.
+which became mandatory in 2026.8. The energy sensors are managed from the
+EnergyCalc entry on the Integrations page; deleting that entry removes them.
+There is no options dialog, so to change the calculation parameters of an
+existing sensor, remove it and add it again.
 
 If a power sensor is renamed or moved to a different device, EnergyCalc follows
 it: the energy sensor keeps its history and moves to the new device.
@@ -131,17 +148,18 @@ reports energy for a different circuit.
 
 You can also manage energy sensors from scripts and automations:
 
-### Create Energy Sensor
+#### Create Energy Sensor
 **Service**: `energycalc.create_energy_sensor`
 
-Manually create an energy sensor for any power entity, with full control over calculation parameters.
+Manually create an energy sensor for any power entity, with full control over
+calculation parameters. The source entity must currently report watts.
 
 **Parameters**:
 - **source_entity** (required): The power sensor entity ID to track
 - **integration_method** (optional): Calculation method - `trapezoidal` (default), `left`, or `right`
-- **round_digits** (optional): Decimal places for the result (default: 3)
+- **round_digits** (optional): Decimal places for the result, 0-10 (default: 3)
 - **unit_prefix** (optional): `k` for kWh (default) or empty string for Wh
-- **max_sub_interval_minutes** (optional): Maximum time between measurements (default: 1 minute)
+- **max_sub_interval_minutes** (optional): Maximum time between measurements, 1-60 (default: 1)
 
 **Example**:
 ```yaml
@@ -154,10 +172,11 @@ data:
   max_sub_interval_minutes: 2
 ```
 
-### Remove Energy Sensor  
+#### Remove Energy Sensor
 **Service**: `energycalc.remove_energy_sensor`
 
-Remove an energy sensor created by this integration.
+Remove an energy sensor created by this integration. If it was the last sensor
+in its config entry, the entry and its reset button are removed too.
 
 **Parameters**:
 - **entity_id** (required): The energy sensor entity ID to remove
