@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2026-08-15
+
+### Fixed
+- EnergyCalc disappeared from **Settings → Devices & Services**. 2.0.0 set
+  `integration_type` to `helper`, and Home Assistant's Integrations page only
+  subscribes to entries of type `device`, `hub`, `service` and `hardware`, so
+  every EnergyCalc entry was filtered out of it. The entries were still loaded
+  and their sensors still worked, they had just moved to the Helpers tab.
+  `integration_type` is now `service`, matching Battery Notes. Powercalc leaves
+  it unset, which defaults to `hub`; either way both appear on the Integrations
+  page, which is where EnergyCalc belongs too.
+- **Add Integration → EnergyCalc** now opens the EnergyCalc form. Under the
+  `helper` type the dialog redirected to the "add helper" page instead.
+
 ## [2.0.0] - 2026-08-14
 
 **Requires Home Assistant 2026.8.0 or newer.**

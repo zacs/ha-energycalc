@@ -791,3 +791,35 @@ async def test_user_flow_rejects_invalid_sources(hass: HomeAssistant) -> None:
         )
         assert result["type"] == "form"
         assert result["errors"] == {"power_entity_id": error}
+
+
+async def test_entries_appear_on_the_integrations_page(
+    hass: HomeAssistant, hass_ws_client
+) -> None:
+    """The Integrations page must list EnergyCalc entries.
+
+    It subscribes with type_filter ["device", "hub", "service", "hardware"],
+    and the backend drops entries whose integration_type is not in that set.
+    Declaring the manifest as a "helper" therefore hid EnergyCalc from
+    Settings > Devices & Services entirely.
+    """
+    await _add_source_device(hass, ["sensor.outlet_1_power"])
+    entry = _energycalc_entry(["sensor.outlet_1_power"])
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    assert await async_setup_component(hass, "config", {})
+    await hass.async_block_till_done()
+
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(
+        {
+            "type": "config_entries/get",
+            "type_filter": ["device", "hub", "service", "hardware"],
+        }
+    )
+    response = await client.receive_json()
+
+    assert response["success"]
+    assert entry.entry_id in [
+        result["entry_id"] for result in response["result"]
+    ]
