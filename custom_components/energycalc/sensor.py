@@ -84,6 +84,8 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
             unit_time=UnitOfTime.HOURS,
             max_sub_interval=max_sub_interval,
             device=device,
+            device_class=SensorDeviceClass.ENERGY,
+
         )
 
         self._integration_method = integration_method
