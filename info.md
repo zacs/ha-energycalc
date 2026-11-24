@@ -2,6 +2,8 @@
 
 Automatically discovers devices with power sensors (W) but missing energy sensors (kWh) and creates energy tracking entities for Home Assistant's Energy Dashboard.
 
+**Requires Home Assistant 2026.11 or newer.** Staying on an older Home Assistant? See [which EnergyCalc version to install](https://github.com/zacs/ha-energycalc#older-home-assistant-versions).
+
 ## Key Features
 
 - **🔍 Automatic Discovery**: Scans for power entities without energy counterparts

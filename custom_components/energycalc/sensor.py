@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.integration.sensor import IntegrationSensor
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import UnitOfEnergy, UnitOfTime
+from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device import async_entity_id_to_device
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -33,16 +33,6 @@ if TYPE_CHECKING:
     from . import EnergyCalcConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
-
-# Units the integral may end up with that still represent energy. Used to give
-# the sensor an energy device class even when the source power sensor does not
-# declare one itself, which is common for template and DIY power sensors.
-_ENERGY_UNITS = {
-    UnitOfEnergy.WATT_HOUR,
-    UnitOfEnergy.KILO_WATT_HOUR,
-    UnitOfEnergy.MEGA_WATT_HOUR,
-    UnitOfEnergy.GIGA_WATT_HOUR,
-}
 
 
 class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
@@ -84,15 +74,20 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
             unit_time=UnitOfTime.HOURS,
             max_sub_interval=max_sub_interval,
             device=device,
+            # Without this, ``IntegrationSensor`` only derives a device class
+            # when the source sensor declares one. EnergyCalc deliberately also
+            # picks up power sensors without a device class, which are common
+            # for template and DIY sensors, and those would otherwise not be
+            # usable on the Energy Dashboard. The parent only applies it while
+            # the resulting unit is an energy unit.
             device_class=SensorDeviceClass.ENERGY,
-
         )
 
         self._integration_method = integration_method
 
         # ``IntegrationSensor`` seeds a generic chart icon, which is what ends
-        # up stored as the entity's original icon. These sensors always end up
-        # with an energy device class, so let its icon apply instead.
+        # up stored as the entity's original icon. These sensors end up with
+        # an energy device class, so let its icon apply instead.
         self._attr_icon = None
 
     async def async_added_to_hass(self) -> None:
@@ -106,34 +101,6 @@ class PowerTotalEnergyIntegrationSensor(IntegrationSensor):
         if (entry := self.platform.config_entry) is not None:
             entry.runtime_data.energy_sensors.pop(self.entity_id, None)
         await super().async_will_remove_from_hass()
-
-    @property
-    def device_class(self) -> SensorDeviceClass | None:
-        """Return the device class.
-
-        ``IntegrationSensor`` only derives a device class when the source
-        sensor declares one. EnergyCalc deliberately also picks up power
-        sensors without a device class, so fall back to energy whenever the
-        resulting unit is an energy unit. Without this the sensor cannot be
-        used on the Energy Dashboard.
-        """
-        if (device_class := super().device_class) is not None:
-            return device_class
-        if self.native_unit_of_measurement in _ENERGY_UNITS:
-            return SensorDeviceClass.ENERGY
-        return None
-
-    @property
-    def icon(self) -> str | None:
-        """Return the icon.
-
-        ``IntegrationSensor`` falls back to a generic chart icon when it could
-        not derive a device class. Once the fallback above supplies one, defer
-        to the device class icon instead.
-        """
-        if self.device_class is not None:
-            return None
-        return super().icon
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

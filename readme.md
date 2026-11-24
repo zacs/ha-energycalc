@@ -22,7 +22,28 @@ NOTE: The discovery happens at the device level, so if you have a device like a 
 
 ## Requirements
 
-Home Assistant **2026.8.0** or newer.
+Home Assistant **2026.11.0** or newer.
+
+### Older Home Assistant versions
+
+Home Assistant 2026.11 changed the integration sensor that EnergyCalc's energy
+sensors are built on, so EnergyCalc 2.1.0 and newer don't work on anything
+older. If you're staying on an older Home Assistant for now, install the
+EnergyCalc version listed for it and don't update past it:
+
+| Your Home Assistant version | EnergyCalc version to install |
+| --- | --- |
+| 2026.11.0 or newer | 2.1.0 or newer |
+| 2026.8.0 to 2026.10.x | 2.0.1 |
+| Older than 2026.8.0 | 1.1.1 |
+
+To install a specific version with HACS, open EnergyCalc in HACS, choose
+**Redownload** from the ⋮ menu and pick the version there, then restart Home
+Assistant. For a manual install, download that version from the
+[releases page][releases].
+
+When you do move to Home Assistant 2026.11, update EnergyCalc to 2.1.0 or newer
+at the same time: older EnergyCalc versions can't create energy sensors there.
 
 ## Example Use Cases
 

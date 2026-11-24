@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - Unreleased
+
+**Requires Home Assistant 2026.11.0 or newer.** If you're staying on Home
+Assistant 2026.8 to 2026.10, keep using EnergyCalc 2.0.1. The readme lists
+[which EnergyCalc version to use](readme.md#older-home-assistant-versions) for
+each Home Assistant release.
+
+### Fixed
+- Energy sensors failed to be created on Home Assistant 2026.11 with
+  `IntegrationSensor.__init__() missing 1 required keyword-only argument: 'device_class'`.
+
+### Changed
+- Power sensors without a device class now get the energy device class from
+  Home Assistant's integration sensor instead of from EnergyCalc's own
+  fallback. One visible difference: if a source sensor's unit changes after its
+  energy sensor was created so that the result is no longer an energy unit
+  (for example a W sensor switched to kW, which gives `kkWh`), Home Assistant
+  now logs a warning that the energy device class doesn't fit that unit.
+
 ## [2.0.1] - 2026-08-15
 
 ### Fixed
