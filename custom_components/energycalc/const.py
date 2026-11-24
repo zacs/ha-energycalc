@@ -5,10 +5,12 @@ from typing import Final
 
 DOMAIN: Final = "energycalc"
 
-# Minimum Home Assistant version. 2026.8 removed the ``hass`` argument from
-# ``IntegrationSensor.__init__`` and added ``async_remove_helper_devices``,
-# both of which this integration relies on.
-MIN_HA_VERSION: Final = "2026.8.0"
+# Minimum Home Assistant version. 2026.11 made ``device_class`` a required
+# argument of ``IntegrationSensor.__init__``. Earlier, 2026.8 removed its
+# ``hass`` argument and added ``async_remove_helper_devices``, which this
+# integration relies on as well. Keep hacs.json and the readme's version table
+# in step with this.
+MIN_HA_VERSION: Final = "2026.11.0"
 
 # Config entry schema version
 CONFIG_VERSION: Final = 1
